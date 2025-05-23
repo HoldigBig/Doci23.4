@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <!-- Дата -->
+    <TextView
+        android:id="@+id/examDate"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:drawableStart="@drawable/ic_calendar"
+        android:drawablePadding="8dp"
+        android:gravity="center_vertical"
+        android:textSize="16sp" />
+
+    <!-- Время -->
+    <TextView
+        android:id="@+id/examTime"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:drawableStart="@drawable/ic_time"
+        android:drawablePadding="8dp"
+        android:gravity="center_vertical"
+        android:textSize="16sp" />
+
+    <!-- Место проведения -->
+    <TextView
+        android:id="@+id/examLocation"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:drawableStart="@drawable/ic_location"
+        android:drawablePadding="8dp"
+        android:gravity="center_vertical"
+        android:textSize="16sp" />
+
+    <!-- Экзаменатор -->
+    <TextView
+        android:id="@+id/examiner"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:drawableStart="@drawable/ic_person"
+        android:drawablePadding="8dp"
+        android:gravity="center_vertical"
+        android:textSize="16sp" />
+
+    <!-- Тип экзамена -->
+    <TextView
+        android:id="@+id/examType"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:drawableStart="@drawable/ic_type"
+        android:drawablePadding="8dp"
+        android:gravity="center_vertical"
+        android:textSize="16sp" />
+
+</LinearLayout> 

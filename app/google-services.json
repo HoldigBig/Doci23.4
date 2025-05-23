@@ -1,0 +1,143 @@
+{
+  "project_info": {
+    "project_number": "392077146897",
+    "project_id": "diplom-doci",
+    "storage_bucket": "diplom-doci.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:392077146897:android:9b61b80336f412ce3e6ab0",
+        "android_client_info": {
+          "package_name": "com.example.doci"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDEl_uX_OI_GQjVso6kYsWjdV6BDGgrqrk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:392077146897:android:40b5c92560cb11af3e6ab0",
+        "android_client_info": {
+          "package_name": "com.example.doci2"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDEl_uX_OI_GQjVso6kYsWjdV6BDGgrqrk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:392077146897:android:c6968f3de7eec64f3e6ab0",
+        "android_client_info": {
+          "package_name": "com.example.doci40"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDEl_uX_OI_GQjVso6kYsWjdV6BDGgrqrk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:392077146897:android:a9a66f43964538313e6ab0",
+        "android_client_info": {
+          "package_name": "com.example.doci_v2"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDEl_uX_OI_GQjVso6kYsWjdV6BDGgrqrk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:392077146897:android:7696dc4ad0bd924e3e6ab0",
+        "android_client_info": {
+          "package_name": "com.example.newdoci20"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDEl_uX_OI_GQjVso6kYsWjdV6BDGgrqrk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:392077146897:android:ad2c452d7c9f84933e6ab0",
+        "android_client_info": {
+          "package_name": "com.example.newdoci30"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDEl_uX_OI_GQjVso6kYsWjdV6BDGgrqrk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:392077146897:android:70e63cf01a8e66f33e6ab0",
+        "android_client_info": {
+          "package_name": "com.example.profil"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDEl_uX_OI_GQjVso6kYsWjdV6BDGgrqrk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
