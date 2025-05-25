@@ -2,11 +2,10 @@
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/white"
     tools:context=".HomeworkActivity">
-
 
     <!-- Toolbar -->
     <androidx.appcompat.widget.Toolbar
@@ -22,7 +21,7 @@
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="Назад"
+            android:contentDescription="@string/back"
             android:src="@drawable/ic_back"
             app:tint="@color/black" />
 
@@ -37,114 +36,111 @@
 
     </androidx.appcompat.widget.Toolbar>
 
-    <!-- Week Days -->
-    <HorizontalScrollView
-        android:id="@+id/weekDaysScroll"
+    <!-- Дни недели RecyclerView -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/daysRecyclerView"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:scrollbars="none"
-        app:layout_constraintTop_toBottomOf="@id/toolbar">
+        android:clipToPadding="false"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp"
+        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+        app:layout_constraintTop_toBottomOf="@id/toolbar" />
 
-        <!-- Добавляем RecyclerView для дней недели -->
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/recyclerViewDays"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
-            tools:listitem="@layout/list_item_day"
-            android:paddingHorizontal="16dp"
-            android:clipToPadding="false"/>
-
-    </HorizontalScrollView>
-
-    <!-- Subject Filter -->
+    <!-- Фильтр по предметам -->
     <HorizontalScrollView
-        android:id="@+id/horizontalScrollView"
+        android:id="@+id/subjectsScrollView"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:clipToPadding="false"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="8dp"
         android:scrollbars="none"
-        app:layout_constraintTop_toBottomOf="@id/weekDaysScroll">
+        app:layout_constraintTop_toBottomOf="@id/daysRecyclerView">
 
         <com.google.android.material.chip.ChipGroup
-            android:id="@+id/subjectFilter"
+            android:id="@+id/subjectsChipGroup"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:paddingHorizontal="16dp"
+            app:chipSpacingHorizontal="8dp"
             app:singleSelection="true">
 
             <com.google.android.material.chip.Chip
                 android:id="@+id/chipAll"
-                style="@style/SubjectChipStyle"
+                style="@style/Widget.MaterialComponents.Chip.Choice"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:checked="true"
-                android:text="Все" />
+                android:text="Все"
+                android:textColor="@color/black"
+                app:chipBackgroundColor="@color/white" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipMath"
+                style="@style/Widget.MaterialComponents.Chip.Choice"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Математика"
+                android:textColor="@color/black"
+                app:chipBackgroundColor="@color/white" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipEnglish"
+                style="@style/Widget.MaterialComponents.Chip.Choice"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Английский язык"
+                android:textColor="@color/black"
+                app:chipBackgroundColor="@color/white" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipArabic"
+                style="@style/Widget.MaterialComponents.Chip.Choice"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Арабский"
+                android:textColor="@color/black"
+                app:chipBackgroundColor="@color/white" />
 
         </com.google.android.material.chip.ChipGroup>
-
     </HorizontalScrollView>
 
-    <!-- Empty State -->
-    <LinearLayout
-        android:id="@+id/emptyState"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:gravity="center"
-        android:orientation="vertical"
-        android:visibility="gone"
-        app:layout_constraintTop_toBottomOf="@+id/horizontalScrollView"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintVertical_bias="0.5">
-
-        <ImageView
-            android:layout_width="match_parent"
-            android:layout_height="400dp"
-            android:layout_marginHorizontal="16dp"
-            android:adjustViewBounds="true"
-            android:maxWidth="600dp"
-            android:maxHeight="500dp"
-            android:scaleType="fitCenter"
-            android:src="@drawable/img_no_homework" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="На сегодня нет\nдомашних заданий"
-            android:textAlignment="center"
-            android:textColor="@color/black"
-            android:textSize="18sp" />
-
-    </LinearLayout>
-
-    <!-- Homework List -->
-
-    <!-- Floating Action Button для добавления домашнего задания -->
+    <!-- Список домашних заданий -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/homeworkRecyclerView"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:clipToPadding="false"
         android:paddingHorizontal="16dp"
+        android:paddingTop="8dp"
+        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/horizontalScrollView"
-        app:layout_constraintVertical_bias="0.497"
-        tools:layout_editor_absoluteX="0dp"
-        tools:listitem="@layout/list_item_homework" />
+        app:layout_constraintTop_toBottomOf="@id/subjectsScrollView" />
 
+    <!-- Пустое состояние -->
+    <TextView
+        android:id="@+id/emptyState"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Нет домашних заданий"
+        android:textColor="@color/gray"
+        android:textSize="16sp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/subjectsScrollView" />
+
+    <!-- Кнопка добавления -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/fab_add_homework"
+        android:id="@+id/addHomeworkButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_margin="16dp"
-        android:clickable="true"
-        android:focusable="true"
-        app:backgroundTint="@color/background"
-        app:tint="@color/white"
+        android:contentDescription="Добавить домашнее задание"
+        android:src="@drawable/ic_add"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:srcCompat="@drawable/ic_add" />
+        app:backgroundTint="@color/background"
+        app:tint="@color/white" />
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+</androidx.constraintlayout.widget.ConstraintLayout> 

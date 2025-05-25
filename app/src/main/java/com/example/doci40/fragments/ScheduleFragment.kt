@@ -10,7 +10,7 @@ import com.example.doci40.R
 import com.example.doci40.adapters.ScheduleAdapter
 import com.example.doci40.databinding.FragmentScheduleBinding
 import com.example.doci40.dialogs.AddScheduleDialog
-import com.example.doci40.models.ScheduleModel
+import com.example.doci40.models.Schedule
 import com.google.android.material.snackbar.Snackbar
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -67,7 +67,7 @@ class ScheduleFragment : Fragment() {
             .orderBy("startTime")
             .get()
             .addOnSuccessListener { documents ->
-                val schedules = documents.mapNotNull { it.toObject(ScheduleModel::class.java) }
+                val schedules = documents.mapNotNull { it.toObject(Schedule::class.java) }
                 if (schedules.isEmpty()) {
                     binding.emptyView.visibility = View.VISIBLE
                     binding.scheduleRecyclerView.visibility = View.GONE
@@ -94,7 +94,7 @@ class ScheduleFragment : Fragment() {
         }.show(childFragmentManager, "AddScheduleDialog")
     }
 
-    private fun showEditScheduleDialog(schedule: ScheduleModel) {
+    private fun showEditScheduleDialog(schedule: Schedule) {
         AddScheduleDialog.newInstance(schedule).apply {
             setOnScheduleSavedListener { updatedSchedule ->
                 updateSchedule(updatedSchedule)
@@ -102,7 +102,7 @@ class ScheduleFragment : Fragment() {
         }.show(childFragmentManager, "EditScheduleDialog")
     }
 
-    private fun saveSchedule(schedule: ScheduleModel) {
+    private fun saveSchedule(schedule: Schedule) {
         val userId = auth.currentUser?.uid ?: return
         val scheduleData = schedule.copy(userId = userId)
         
@@ -116,7 +116,7 @@ class ScheduleFragment : Fragment() {
             }
     }
 
-    private fun updateSchedule(schedule: ScheduleModel) {
+    private fun updateSchedule(schedule: Schedule) {
         val userId = auth.currentUser?.uid ?: return
         val scheduleData = schedule.copy(userId = userId)
         

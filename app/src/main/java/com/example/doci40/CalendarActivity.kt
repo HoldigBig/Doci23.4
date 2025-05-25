@@ -5,11 +5,14 @@ import android.os.Build
 import android.os.Bundle
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.viewpager2.widget.ViewPager2
 import com.example.doci40.databinding.ActivityCalendarBinding
+import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
 
 class CalendarActivity : AppCompatActivity() {
-
     private lateinit var binding: ActivityCalendarBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -17,25 +20,32 @@ class CalendarActivity : AppCompatActivity() {
         binding = ActivityCalendarBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Устанавливаем цвет иконок статус бара на черный
+        // Настройка статус бара
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
-            window.statusBarColor = Color.TRANSPARENT // Опционально, если нужен прозрачный статус бар
+            window.statusBarColor = Color.TRANSPARENT
         }
 
-        setupToolbar()
-        setupViewPagerAndTabs()
+        // Настройка отступов
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(android.R.id.content)) { v, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+            insets
+        }
+
+        setupViews()
+        setupViewPager()
     }
 
-    private fun setupToolbar() {
-        binding.toolbarCalendar.setNavigationOnClickListener { finish() }
+    private fun setupViews() {
+        binding.backButton.setOnClickListener { finish() }
     }
 
-    private fun setupViewPagerAndTabs() {
+    private fun setupViewPager() {
         val adapter = CalendarPagerAdapter(this)
-        binding.viewPagerCalendar.adapter = adapter
+        binding.viewPager.adapter = adapter
 
-        TabLayoutMediator(binding.tabLayoutCalendar, binding.viewPagerCalendar) { tab, position ->
+        TabLayoutMediator(binding.tabLayout, binding.viewPager) { tab, position ->
             tab.text = when (position) {
                 0 -> "Посещаемость"
                 1 -> "Расписание"

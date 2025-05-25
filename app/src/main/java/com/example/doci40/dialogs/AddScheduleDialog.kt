@@ -10,7 +10,7 @@ import android.widget.AutoCompleteTextView
 import androidx.core.widget.doAfterTextChanged
 import com.example.doci40.R
 import com.example.doci40.databinding.DialogAddScheduleBinding
-import com.example.doci40.models.ScheduleModel
+import com.example.doci40.models.Schedule
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import java.text.SimpleDateFormat
 import java.util.*
@@ -19,8 +19,8 @@ class AddScheduleDialog : BottomSheetDialogFragment() {
     private var _binding: DialogAddScheduleBinding? = null
     private val binding get() = _binding!!
     
-    private var scheduleToEdit: ScheduleModel? = null
-    private var onScheduleSavedListener: ((ScheduleModel) -> Unit)? = null
+    private var scheduleToEdit: Schedule? = null
+    private var onScheduleSavedListener: ((Schedule) -> Unit)? = null
     
     private val daysOfWeek = arrayOf(
         "Понедельник",
@@ -149,7 +149,7 @@ class AddScheduleDialog : BottomSheetDialogFragment() {
 
     private fun fillScheduleDataIfEditing() {
         scheduleToEdit?.let { schedule ->
-            binding.titleInput.setText(schedule.title)
+            binding.titleInput.setText(schedule.subject)
             binding.teacherInput.setText(schedule.teacher)
             binding.roomInput.setText(schedule.room)
             binding.dayOfWeekInput.setText(daysOfWeek[schedule.dayOfWeek - 1], false)
@@ -166,9 +166,9 @@ class AddScheduleDialog : BottomSheetDialogFragment() {
             return
         }
 
-        val schedule = ScheduleModel(
+        val schedule = Schedule(
             id = scheduleToEdit?.id ?: UUID.randomUUID().toString(),
-            title = binding.titleInput.text.toString(),
+            subject = binding.titleInput.text.toString(),
             teacher = binding.teacherInput.text.toString(),
             room = binding.roomInput.text.toString(),
             dayOfWeek = daysOfWeek.indexOf(binding.dayOfWeekInput.text.toString()) + 1,
@@ -177,7 +177,8 @@ class AddScheduleDialog : BottomSheetDialogFragment() {
             type = binding.typeInput.text.toString(),
             group = binding.groupInput.text.toString(),
             weekType = binding.weekTypeInput.text.toString(),
-            userId = scheduleToEdit?.userId ?: "" // TODO: Добавить получение userId из Firebase Auth
+            userId = scheduleToEdit?.userId ?: "",
+            groupId = scheduleToEdit?.groupId ?: ""
         )
 
         onScheduleSavedListener?.invoke(schedule)
@@ -225,12 +226,12 @@ class AddScheduleDialog : BottomSheetDialogFragment() {
         return isValid
     }
 
-    fun setOnScheduleSavedListener(listener: (ScheduleModel) -> Unit) {
+    fun setOnScheduleSavedListener(listener: (Schedule) -> Unit) {
         onScheduleSavedListener = listener
     }
 
     companion object {
-        fun newInstance(scheduleToEdit: ScheduleModel? = null): AddScheduleDialog {
+        fun newInstance(scheduleToEdit: Schedule? = null): AddScheduleDialog {
             return AddScheduleDialog().apply {
                 this.scheduleToEdit = scheduleToEdit
             }

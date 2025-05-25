@@ -1,6 +1,5 @@
 package com.example.doci40.homework.adapters
 
-import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -8,79 +7,66 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.example.doci40.R
 import com.example.doci40.homework.models.DayItem
-import com.example.doci40.databinding.ListItemDayBinding
 
-class DayAdapter(private val days: List<DayItem>) : RecyclerView.Adapter<DayAdapter.DayViewHolder>() {
+class DayAdapter(private var days: List<DayItem>) : RecyclerView.Adapter<DayAdapter.DayViewHolder>() {
+    private var selectedDay: DayItem? = null
+    private var listener: DayClickListener? = null
 
     interface DayClickListener {
         fun onDayClick(dayItem: DayItem)
     }
 
-    private var clickListener: DayClickListener? = null
-    var selectedPosition: Int = -1
-        private set
-
     fun setOnDayClickListener(listener: DayClickListener) {
-        clickListener = listener
+        this.listener = listener
     }
 
-    fun getSelectedDay(): DayItem? {
-        return if (selectedPosition != -1 && selectedPosition < days.size) {
-            days[selectedPosition]
-        } else {
-            null
+    fun setSelectedDay(day: DayItem) {
+        val oldSelectedPosition = days.indexOfFirst { it.isSelected }
+        if (oldSelectedPosition != -1) {
+            days[oldSelectedPosition].isSelected = false
+            notifyItemChanged(oldSelectedPosition)
+        }
+
+        val newSelectedPosition = days.indexOf(day)
+        if (newSelectedPosition != -1) {
+            days[newSelectedPosition].isSelected = true
+            selectedDay = days[newSelectedPosition]
+            notifyItemChanged(newSelectedPosition)
         }
     }
 
-    inner class DayViewHolder(private val binding: ListItemDayBinding) : RecyclerView.ViewHolder(binding.root) {
-        init {
-            itemView.setOnClickListener {
-                val position = adapterPosition
-                if (position != RecyclerView.NO_POSITION) {
-                    val previouslySelectedPosition = selectedPosition
-                    selectedPosition = position
-                    notifyItemChanged(previouslySelectedPosition)
-                    notifyItemChanged(selectedPosition)
-                    clickListener?.onDayClick(days[position])
-                }
-            }
-        }
-
-        fun bind(dayItem: DayItem, isSelected: Boolean) {
-            binding.textViewDayOfWeek.text = dayItem.dayOfWeek
-            binding.textViewDayNumber.text = dayItem.dayNumber
-
-            // Скрываем номер дня для элемента "Все"
-            binding.textViewDayNumber.visibility = if (dayItem.date == -1L) ViewGroup.GONE else ViewGroup.VISIBLE
-
-            val textColor = if (isSelected) Color.BLACK else Color.GRAY
-            binding.textViewDayOfWeek.setTextColor(textColor)
-            binding.textViewDayNumber.setTextColor(textColor)
-
-            // Добавляем визуальное выделение выбранного элемента
-            itemView.setBackgroundResource(if (isSelected) R.drawable.bg_selected_day else android.R.color.transparent)
-        }
-    }
+    fun getSelectedDay(): DayItem? = selectedDay
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): DayViewHolder {
-        val binding = ListItemDayBinding.inflate(LayoutInflater.from(parent.context), parent, false)
-        return DayViewHolder(binding)
+        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_day, parent, false)
+        return DayViewHolder(view)
     }
 
     override fun onBindViewHolder(holder: DayViewHolder, position: Int) {
-        val dayItem = days[position]
-        holder.bind(dayItem, position == selectedPosition)
+        holder.bind(days[position])
     }
 
     override fun getItemCount(): Int = days.size
 
-    fun setSelectedDay(dayItem: DayItem) {
-        val position = days.indexOf(dayItem)
-        if (position != -1) {
-            val previouslySelectedPosition = selectedPosition
-            selectedPosition = position
-            notifyItemChanged(previouslySelectedPosition)
-            notifyItemChanged(selectedPosition)
+    inner class DayViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val dayOfWeek: TextView = itemView.findViewById(R.id.dayOfWeek)
+        private val dayNumber: TextView = itemView.findViewById(R.id.dayNumber)
+
+        init {
+            itemView.setOnClickListener {
+                val position = adapterPosition
+                if (position != RecyclerView.NO_POSITION) {
+                    val day = days[position]
+                    setSelectedDay(day)
+                    listener?.onDayClick(day)
+                }
+            }
+        }
+
+        fun bind(day: DayItem) {
+            dayOfWeek.text = day.dayOfWeek
+            dayNumber.text = day.dayNumber
+            dayNumber.isSelected = day.isSelected
         }
     }
 } 

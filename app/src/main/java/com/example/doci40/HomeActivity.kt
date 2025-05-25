@@ -14,6 +14,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import com.example.doci40.homework.AddHomeworkActivity
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.imageview.ShapeableImageView
@@ -39,9 +40,9 @@ class HomeActivity : AppCompatActivity() {
     private lateinit var studentImage: ShapeableImageView
 
     // Buttons
+    private lateinit var btnHomework: MaterialCardView
     private lateinit var notificationButton: ImageButton
     private lateinit var btnExams: MaterialCardView
-    private lateinit var btnHomework: MaterialCardView
     private lateinit var btnTeacher: MaterialCardView
     private lateinit var btnHeadman: MaterialCardView
     private lateinit var btnResults: MaterialCardView
@@ -95,6 +96,7 @@ class HomeActivity : AppCompatActivity() {
     private fun initViews() {
         Log.d(TAG, "initViews: Инициализация views")
 
+        btnHomework = findViewById(R.id.btn_homework)
         userName = findViewById(R.id.userName)
         studentName = findViewById(R.id.studentName)
         studentEmail = findViewById(R.id.studentEmail)
@@ -105,7 +107,6 @@ class HomeActivity : AppCompatActivity() {
         // Инициализация кнопок
         notificationButton = findViewById(R.id.notificationButton)
         btnExams = findViewById(R.id.btn_exams)
-        btnHomework = findViewById(R.id.btn_homework)
         btnTeacher = findViewById(R.id.btn_teacher)
         btnHeadman = findViewById(R.id.btn_headman)
         btnResults = findViewById(R.id.btn_results)
@@ -116,7 +117,9 @@ class HomeActivity : AppCompatActivity() {
 
     private fun setupClickListeners() {
         Log.d(TAG, "setupClickListeners: Настройка обработчиков нажатий")
-
+        btnHomework.setOnClickListener {
+            startActivity(Intent(this, HomeworkActivity::class.java))
+        }
         notificationButton.setOnClickListener {
             startActivity(Intent(this, NotificationsActivity::class.java))
         }
@@ -127,10 +130,6 @@ class HomeActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 handleError("Ошибка при открытии экзаменов: ${e.message}")
             }
-        }
-
-        btnHomework.setOnClickListener {
-            startActivity(Intent(this, HomeworkActivity::class.java))
         }
 
         btnTeacher.setOnClickListener {

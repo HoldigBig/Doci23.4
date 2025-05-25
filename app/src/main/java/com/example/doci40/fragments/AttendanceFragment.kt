@@ -1,33 +1,30 @@
 package com.example.doci40.fragments
 
-import android.app.DatePickerDialog
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.GridLayout
+import android.widget.TextView
+import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
-import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.doci40.R
-import com.example.doci40.adapters.MonthlyAttendanceAdapter
 import com.example.doci40.databinding.FragmentAttendanceBinding
-import com.example.doci40.dialogs.AddAttendanceDialog
-import com.example.doci40.models.AttendanceRecord
-import com.example.doci40.models.AttendanceSummary
-import com.google.android.material.snackbar.Snackbar
+import com.example.doci40.models.Attendance
+import com.google.android.material.card.MaterialCardView
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Query
 import java.text.SimpleDateFormat
 import java.util.*
 
 class AttendanceFragment : Fragment() {
-
     private var _binding: FragmentAttendanceBinding? = null
     private val binding get() = _binding!!
-
-    private lateinit var monthlyAttendanceAdapter: MonthlyAttendanceAdapter
-    private val db = FirebaseFirestore.getInstance()
-    private val auth = FirebaseAuth.getInstance()
+    private lateinit var auth: FirebaseAuth
+    private lateinit var db: FirebaseFirestore
+    private var currentDate = Calendar.getInstance()
+    private var attendanceMap = mutableMapOf<String, Attendance>()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -40,147 +37,206 @@ class AttendanceFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        setupRecyclerView()
-        setupDateSelection()
-        setupFab()
+        
+        auth = FirebaseAuth.getInstance()
+        db = FirebaseFirestore.getInstance()
+
+        setupViews()
+        updateCalendarDisplay()
         loadAttendanceData()
     }
 
-    private fun setupRecyclerView() {
-        monthlyAttendanceAdapter = MonthlyAttendanceAdapter { attendanceSummary ->
-            // Handle item click (e.g., show detailed attendance for the month)
-            Snackbar.make(binding.root, getString(R.string.attendance_view_details) + " ${attendanceSummary.month}", Snackbar.LENGTH_SHORT).show()
+    private fun setupViews() {
+        // Настройка навигации по месяцам
+        binding.prevMonth.setOnClickListener {
+            currentDate.add(Calendar.MONTH, -1)
+            updateCalendarDisplay()
+            loadAttendanceData()
         }
-        binding.rvMonthlyAttendance.apply {
-            layoutManager = LinearLayoutManager(context)
-            adapter = monthlyAttendanceAdapter
+
+        binding.nextMonth.setOnClickListener {
+            currentDate.add(Calendar.MONTH, 1)
+            updateCalendarDisplay()
+            loadAttendanceData()
+        }
+
+        // Настройка кнопки добавления
+        binding.fabAddAttendance.setOnClickListener {
+            showAddAttendanceDialog()
         }
     }
 
-    private fun setupDateSelection() {
-        binding.tilSelectDate.setOnClickListener { showDatePicker() }
-        binding.etSelectDate.setOnClickListener { showDatePicker() }
+    private fun updateCalendarDisplay() {
+        // Обновляем заголовок месяца и года
+        val monthFormat = SimpleDateFormat("MMMM yyyy", Locale("ru"))
+        binding.monthText.text = monthFormat.format(currentDate.time)
+
+        // Очищаем и заполняем сетку календаря
+        binding.calendarGrid.removeAllViews()
+        createCalendarGrid()
     }
 
-    private fun showDatePicker() {
-        val calendar = Calendar.getInstance()
-        val year = calendar.get(Calendar.YEAR)
-        val month = calendar.get(Calendar.MONTH)
-        val day = calendar.get(Calendar.DAY_OF_MONTH)
+    private fun createCalendarGrid() {
+        val calendar = currentDate.clone() as Calendar
+        calendar.set(Calendar.DAY_OF_MONTH, 1)
 
-        val datePickerDialog = DatePickerDialog(
-            requireContext(),
-            { _, selectedYear, selectedMonth, selectedDay ->
-                val selectedCalendar = Calendar.getInstance()
-                selectedCalendar.set(selectedYear, selectedMonth, selectedDay)
-                val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
-                binding.etSelectDate.setText(dateFormat.format(selectedCalendar.time))
-                // TODO: Filter attendance data based on selected date if needed
-            },
-            year,
-            month,
-            day
-        )
-        datePickerDialog.show()
+        // Получаем день недели первого дня месяца (0 = воскресенье)
+        var dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
+        // Корректируем для русской локали (1 = понедельник)
+        dayOfWeek = if (dayOfWeek == Calendar.SUNDAY) 7 else dayOfWeek - 1
+
+        // Добавляем заголовки дней недели
+        val daysOfWeek = arrayOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс")
+        for (day in daysOfWeek) {
+            addDayHeader(day)
+        }
+
+        // Добавляем пустые ячейки до первого дня месяца
+        for (i in 1 until dayOfWeek) {
+            addEmptyDay()
+        }
+
+        // Добавляем дни месяца
+        val daysInMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
+        for (day in 1..daysInMonth) {
+            addDay(day)
+        }
     }
 
-    private fun setupFab() {
-        binding.fabAddAttendance.setOnClickListener { showAddAttendanceDialog() }
+    private fun addDayHeader(text: String) {
+        val textView = TextView(context).apply {
+            this.text = text
+            textAlignment = View.TEXT_ALIGNMENT_CENTER
+            setPadding(8, 8, 8, 8)
+        }
+        val params = GridLayout.LayoutParams().apply {
+            width = 0
+            height = GridLayout.LayoutParams.WRAP_CONTENT
+            columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
+        }
+        binding.calendarGrid.addView(textView, params)
     }
 
-    private fun showAddAttendanceDialog() {
-        AddAttendanceDialog.newInstance().apply {
-            setOnAttendanceRecordAddedListener { date, status ->
-                saveAttendanceRecord(date, status)
-            }
-        }.show(childFragmentManager, "AddAttendanceDialog")
+    private fun addEmptyDay() {
+        val view = View(context)
+        val params = GridLayout.LayoutParams().apply {
+            width = 0
+            height = 48 // Высота как у дней с числами
+            columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
+        }
+        binding.calendarGrid.addView(view, params)
     }
 
-    private fun saveAttendanceRecord(date: Date, status: String) {
-        val userId = auth.currentUser?.uid ?: return
-        val attendanceRecord = AttendanceRecord(userId = userId, timestamp = date, status = status)
+    private fun addDay(day: Int) {
+        val calendar = currentDate.clone() as Calendar
+        calendar.set(Calendar.DAY_OF_MONTH, day)
+        val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale("ru"))
+        val dateString = dateFormat.format(calendar.time)
 
-        db.collection("attendance")
-            .add(attendanceRecord)
-            .addOnSuccessListener {
-                Snackbar.make(binding.root, "Запись добавлена", Snackbar.LENGTH_SHORT).show()
-                loadAttendanceData() // Reload data after adding
-            }
-            .addOnFailureListener { e ->
-                Snackbar.make(binding.root, "Ошибка при добавлении записи: ${e.message}", Snackbar.LENGTH_LONG).show()
-            }
+        val cardView = MaterialCardView(requireContext()).apply {
+            radius = resources.getDimension(R.dimen.calendar_day_radius)
+            cardElevation = 0f
+            setCardBackgroundColor(getDayColor(dateString))
+        }
+
+        val textView = TextView(context).apply {
+            text = day.toString()
+            textAlignment = View.TEXT_ALIGNMENT_CENTER
+            setTextColor(ContextCompat.getColor(context, R.color.white))
+            setPadding(8, 8, 8, 8)
+        }
+
+        cardView.addView(textView)
+
+        val params = GridLayout.LayoutParams().apply {
+            width = 0
+            height = GridLayout.LayoutParams.WRAP_CONTENT
+            columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
+            setMargins(4, 4, 4, 4)
+        }
+        binding.calendarGrid.addView(cardView, params)
+    }
+
+    private fun getDayColor(dateString: String): Int {
+        val attendance = attendanceMap[dateString]
+        val today = SimpleDateFormat("dd.MM.yyyy", Locale("ru")).format(Date())
+
+        return when {
+            dateString == today -> ContextCompat.getColor(requireContext(), R.color.background)
+            attendance?.isHoliday == true -> ContextCompat.getColor(requireContext(), R.color.gray)
+            attendance?.isPresent == false -> ContextCompat.getColor(requireContext(), R.color.red)
+            attendance?.isPresent == true -> ContextCompat.getColor(requireContext(), R.color.success)
+            else -> ContextCompat.getColor(requireContext(), R.color.gray_light)
+        }
     }
 
     private fun loadAttendanceData() {
-        val userId = auth.currentUser?.uid ?: return
-
-        // Show loading indicator
         binding.progressBar.visibility = View.VISIBLE
-        binding.rvMonthlyAttendance.visibility = View.GONE
-        binding.emptyView.visibility = View.GONE
-
-        db.collection("attendance")
-            .whereEqualTo("userId", userId)
-            .orderBy("timestamp", Query.Direction.ASCENDING)
-            .get()
-            .addOnSuccessListener { documents ->
-                binding.progressBar.visibility = View.GONE
-                val attendanceRecords = documents.mapNotNull { it.toObject(AttendanceRecord::class.java) }
-                processAttendanceData(attendanceRecords)
-            }
-            .addOnFailureListener { e ->
-                binding.progressBar.visibility = View.GONE
-                binding.emptyView.visibility = View.VISIBLE
-                Snackbar.make(binding.root, "Ошибка загрузки данных: ${e.message}", Snackbar.LENGTH_LONG).show()
-            }
-    }
-
-    private fun processAttendanceData(records: List<AttendanceRecord>) {
-        if (records.isEmpty()) {
-            binding.emptyView.visibility = View.VISIBLE
-            binding.rvMonthlyAttendance.visibility = View.GONE
-            // Reset overall attendance views
-            binding.tvAttendancePercentage.text = getString(R.string.attendance_overall_percentage, 0)
-            binding.circularProgressIndicator.progress = 0
-            binding.tvTotalPresentDays.text = getString(R.string.attendance_total_present, 0)
-            binding.tvTotalAbsentDays.text = getString(R.string.attendance_total_absent, 0)
+        
+        val currentUser = auth.currentUser
+        if (currentUser == null) {
+            showError("Пользователь не авторизован")
             return
         }
 
-        binding.emptyView.visibility = View.GONE
-        binding.rvMonthlyAttendance.visibility = View.VISIBLE
+        // Получаем начало и конец текущего месяца
+        val startDate = currentDate.clone() as Calendar
+        startDate.set(Calendar.DAY_OF_MONTH, 1)
+        startDate.set(Calendar.HOUR_OF_DAY, 0)
+        startDate.set(Calendar.MINUTE, 0)
+        startDate.set(Calendar.SECOND, 0)
 
-        // Calculate overall attendance
-        val totalDays = records.size
-        val presentDays = records.count { it.status == "present" }
-        val absentDays = totalDays - presentDays
-        val overallPercentage = if (totalDays == 0) 0 else (presentDays * 100) / totalDays
+        val endDate = startDate.clone() as Calendar
+        endDate.add(Calendar.MONTH, 1)
+        endDate.add(Calendar.SECOND, -1)
 
-        binding.tvAttendancePercentage.text = getString(R.string.attendance_overall_percentage, overallPercentage)
-        binding.circularProgressIndicator.progress = overallPercentage
-        binding.tvTotalPresentDays.text = getString(R.string.attendance_total_present, presentDays)
-        binding.tvTotalAbsentDays.text = getString(R.string.attendance_total_absent, absentDays)
+        // Загрузка данных о посещаемости из Firebase
+        db.collection("attendance")
+            .whereEqualTo("userId", currentUser.uid)
+            .whereGreaterThanOrEqualTo("date", startDate.time)
+            .whereLessThanOrEqualTo("date", endDate.time)
+            .get()
+            .addOnSuccessListener { documents ->
+                binding.progressBar.visibility = View.GONE
+                attendanceMap.clear()
 
-        // Aggregate data by month
-        val monthlyData = records.groupBy { record ->
-            // Group by Month and Year
-            val calendar = Calendar.getInstance()
-            calendar.time = record.timestamp ?: Date()
-            SimpleDateFormat("MMMM yyyy", Locale("ru")).format(calendar.time)
-        }.map { (month, monthRecords) ->
-            val monthTotalDays = monthRecords.size
-            val monthPresentDays = monthRecords.count { it.status == "present" }
-            val monthAbsentDays = monthTotalDays - monthPresentDays
-            AttendanceSummary(month, monthPresentDays, monthAbsentDays, monthTotalDays)
-        }.sortedBy { // Sort months chronologically (basic attempt)
-            try {
-                SimpleDateFormat("MMMM yyyy", Locale("ru")).parse(it.month)
-            } catch (e: Exception) {
-                Date(0) // Put unparseable dates at the beginning
+                var totalDays = 0
+                var presentDays = 0
+                var absentDays = 0
+
+                documents.forEach { doc ->
+                    val attendance = doc.toObject(Attendance::class.java)
+                    val dateString = SimpleDateFormat("dd.MM.yyyy", Locale("ru"))
+                        .format(attendance.date)
+                    attendanceMap[dateString] = attendance
+
+                    if (!attendance.isHoliday) {
+                        totalDays++
+                        if (attendance.isPresent) presentDays++ else absentDays++
+                    }
+                }
+
+                // Обновляем статистику
+                binding.totalDaysText.text = "Всего учебных дней: $totalDays"
+                binding.presentDaysText.text = "Присутствовал: $presentDays"
+                binding.absentDaysText.text = "Отсутствовал: $absentDays"
+
+                // Обновляем календарь
+                updateCalendarDisplay()
             }
-        }
+            .addOnFailureListener { e ->
+                binding.progressBar.visibility = View.GONE
+                showError("Ошибка при загрузке данных: ${e.message}")
+            }
+    }
 
-        monthlyAttendanceAdapter.submitList(monthlyData)
+    private fun showAddAttendanceDialog() {
+        // Здесь будет показан диалог добавления посещаемости
+        Toast.makeText(context, "Добавление посещаемости", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun showError(message: String) {
+        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
     }
 
     override fun onDestroyView() {

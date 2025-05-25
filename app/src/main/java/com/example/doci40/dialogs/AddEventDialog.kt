@@ -11,60 +11,30 @@ import android.widget.AutoCompleteTextView
 import androidx.core.widget.doAfterTextChanged
 import com.example.doci40.R
 import com.example.doci40.databinding.DialogAddEventBinding
-import com.example.doci40.models.EventModel
+import com.example.doci40.models.Event
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import java.text.SimpleDateFormat
 import java.util.*
 
 class AddEventDialog : BottomSheetDialogFragment() {
-
     private var _binding: DialogAddEventBinding? = null
     private val binding get() = _binding!!
-
-    private var selectedDate: Calendar = Calendar.getInstance()
-    private var startTime: Calendar = Calendar.getInstance()
-    private var endTime: Calendar = Calendar.getInstance().apply { add(Calendar.HOUR_OF_DAY, 1) }
-
-    private val dateFormat = SimpleDateFormat("d MMMM yyyy", Locale("ru"))
-    private val timeFormat = SimpleDateFormat("HH:mm", Locale("ru"))
-
-    private var eventToEdit: EventModel? = null
-    private var onEventSavedListener: ((EventModel) -> Unit)? = null
-
+    
+    private var eventToEdit: Event? = null
+    private var onEventSavedListener: ((Event) -> Unit)? = null
+    
     private val eventTypes = arrayOf(
-        // Учебные события
-        "Лекция",
-        "Практика",
-        "Лабораторная работа",
-        "Семинар",
-        "Экзамен",
-        "Зачет",
-        "Консультация",
-        "Пересдача",
-        "Защита работы",
-        
-        // Праздники и мероприятия
-        "Праздник",
-        "День рождения",
-        "Выпускной",
-        "Посвящение",
-        "Конференция",
-        "Олимпиада",
-        "Конкурс",
-        "Фестиваль",
-        
-        // Внеучебные мероприятия
-        "Собрание",
         "Встреча",
-        "Собеседование",
-        "Тренинг",
-        "Мастер-класс",
-        "Экскурсия",
-        "Спортивное мероприятие",
-        "Культурное мероприятие",
-        
-        // Другое
+        "Дедлайн",
+        "Мероприятие",
+        "Праздник",
         "Другое"
+    )
+    
+    private val priorities = arrayOf(
+        "Высокий",
+        "Средний",
+        "Низкий"
     )
 
     override fun onCreateView(
@@ -84,94 +54,112 @@ class AddEventDialog : BottomSheetDialogFragment() {
     }
 
     private fun setupViews() {
-        // Настройка выпадающего списка типов событий
-        val adapter = ArrayAdapter(requireContext(), R.layout.item_dropdown, eventTypes)
-        (binding.typeLayout.editText as? AutoCompleteTextView)?.setAdapter(adapter)
+        // Настройка выпадающих списков
+        setupDropdown(binding.typeInput, eventTypes)
+        setupDropdown(binding.priorityInput, priorities)
 
-        // Установка начальных значений
-        updateDateField()
-        updateTimeFields()
+        // Установка заголовка
+        binding.dialogTitle.text = if (eventToEdit == null) {
+            getString(R.string.add_event)
+        } else {
+            getString(R.string.edit_event)
+        }
+    }
+
+    private fun setupDropdown(view: AutoCompleteTextView, items: Array<String>) {
+        val adapter = ArrayAdapter(requireContext(), R.layout.item_dropdown, items)
+        view.setAdapter(adapter)
     }
 
     private fun setupListeners() {
-        // Обработчик выбора даты
-        binding.dateEditText.setOnClickListener {
-            showDatePicker()
-        }
+        // Обработчики для полей даты и времени
+        binding.dateInput.setOnClickListener { showDatePicker() }
+        binding.startTimeInput.setOnClickListener { showTimePicker(true) }
+        binding.endTimeInput.setOnClickListener { showTimePicker(false) }
 
-        // Обработчики выбора времени
-        binding.startTimeEditText.setOnClickListener {
-            showTimePicker(true)
-        }
-
-        binding.endTimeEditText.setOnClickListener {
-            showTimePicker(false)
-        }
+        // Обработчики кнопок
+        binding.buttonCancel.setOnClickListener { dismiss() }
+        binding.buttonSave.setOnClickListener { saveEvent() }
 
         // Валидация полей
-        binding.titleEditText.doAfterTextChanged {
-            validateTitle()
-        }
-
-        binding.descriptionEditText.doAfterTextChanged {
-            validateDescription()
-        }
-
-        binding.locationEditText.doAfterTextChanged {
-            validateLocation()
-        }
-
-        // Кнопки действий
-        binding.buttonCancel.setOnClickListener {
-            dismiss()
-        }
-
-        binding.buttonSave.setOnClickListener {
-            if (validateAll()) {
-                saveEvent()
-            }
-        }
+        setupValidation()
     }
 
-    private fun fillEventDataIfEditing() {
-        eventToEdit?.let { event ->
-            binding.apply {
-                titleEditText.setText(event.title)
-                descriptionEditText.setText(event.description)
-                locationEditText.setText(event.location)
-                (typeLayout.editText as? AutoCompleteTextView)?.setText(event.type, false)
+    private fun setupValidation() {
+        val requiredFields = listOf(
+            binding.titleInput to "Название события",
+            binding.dateInput to "Дата",
+            binding.startTimeInput to "Время начала",
+            binding.endTimeInput to "Время окончания",
+            binding.typeInput to "Тип события",
+            binding.priorityInput to "Приоритет"
+        )
 
-                selectedDate.time = event.date
-                startTime.time = event.startTime
-                endTime.time = event.endTime
-
-                updateDateField()
-                updateTimeFields()
+        requiredFields.forEach { (field, hint) ->
+            field.doAfterTextChanged {
+                if (it.isNullOrBlank()) {
+                    field.error = "Поле '$hint' обязательно для заполнения"
+                } else {
+                    field.error = null
+                }
             }
         }
     }
 
     private fun showDatePicker() {
+        val calendar = Calendar.getInstance()
+        val currentDate = binding.dateInput.text.toString()
+        
+        if (currentDate.isNotEmpty()) {
+            val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
+            try {
+                val date = dateFormat.parse(currentDate)
+                if (date != null) {
+                    calendar.time = date
+                }
+            } catch (e: Exception) {
+                // Игнорируем ошибку парсинга
+            }
+        }
+
         DatePickerDialog(
             requireContext(),
-            { _, year, month, day ->
-                selectedDate.set(year, month, day)
-                updateDateField()
+            { _, year, month, dayOfMonth ->
+                val selectedDate = String.format("%02d.%02d.%04d", dayOfMonth, month + 1, year)
+                binding.dateInput.setText(selectedDate)
             },
-            selectedDate.get(Calendar.YEAR),
-            selectedDate.get(Calendar.MONTH),
-            selectedDate.get(Calendar.DAY_OF_MONTH)
+            calendar.get(Calendar.YEAR),
+            calendar.get(Calendar.MONTH),
+            calendar.get(Calendar.DAY_OF_MONTH)
         ).show()
     }
 
     private fun showTimePicker(isStartTime: Boolean) {
-        val calendar = if (isStartTime) startTime else endTime
+        val calendar = Calendar.getInstance()
+        val currentTime = if (isStartTime) binding.startTimeInput.text.toString() 
+                         else binding.endTimeInput.text.toString()
+        
+        if (currentTime.isNotEmpty()) {
+            val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+            try {
+                val date = timeFormat.parse(currentTime)
+                if (date != null) {
+                    calendar.time = date
+                }
+            } catch (e: Exception) {
+                // Игнорируем ошибку парсинга
+            }
+        }
+
         TimePickerDialog(
             requireContext(),
-            { _, hour, minute ->
-                calendar.set(Calendar.HOUR_OF_DAY, hour)
-                calendar.set(Calendar.MINUTE, minute)
-                updateTimeFields()
+            { _, hourOfDay, minute ->
+                val time = String.format("%02d:%02d", hourOfDay, minute)
+                if (isStartTime) {
+                    binding.startTimeInput.setText(time)
+                } else {
+                    binding.endTimeInput.setText(time)
+                }
             },
             calendar.get(Calendar.HOUR_OF_DAY),
             calendar.get(Calendar.MINUTE),
@@ -179,70 +167,74 @@ class AddEventDialog : BottomSheetDialogFragment() {
         ).show()
     }
 
-    private fun updateDateField() {
-        binding.dateEditText.setText(dateFormat.format(selectedDate.time))
-    }
-
-    private fun updateTimeFields() {
-        binding.startTimeEditText.setText(timeFormat.format(startTime.time))
-        binding.endTimeEditText.setText(timeFormat.format(endTime.time))
-    }
-
-    private fun validateTitle(): Boolean {
-        val title = binding.titleEditText.text.toString().trim()
-        val isValid = title.length >= 3
-        binding.titleLayout.error = if (isValid) null else "Минимум 3 символа"
-        return isValid
-    }
-
-    private fun validateDescription(): Boolean {
-        val description = binding.descriptionEditText.text.toString().trim()
-        val isValid = description.isNotEmpty()
-        binding.descriptionLayout.error = if (isValid) null else "Обязательное поле"
-        return isValid
-    }
-
-    private fun validateLocation(): Boolean {
-        val location = binding.locationEditText.text.toString().trim()
-        val isValid = location.isNotEmpty()
-        binding.locationLayout.error = if (isValid) null else "Обязательное поле"
-        return isValid
-    }
-
-    private fun validateTime(): Boolean {
-        val isValid = !endTime.before(startTime)
-        binding.endTimeLayout.error = if (isValid) null else "Время окончания должно быть позже времени начала"
-        return isValid
-    }
-
-    private fun validateType(): Boolean {
-        val type = (binding.typeLayout.editText as? AutoCompleteTextView)?.text.toString()
-        val isValid = type.isNotEmpty()
-        binding.typeLayout.error = if (isValid) null else "Выберите тип события"
-        return isValid
-    }
-
-    private fun validateAll(): Boolean {
-        return validateTitle() &&
-                validateDescription() &&
-                validateLocation() &&
-                validateTime() &&
-                validateType()
+    private fun fillEventDataIfEditing() {
+        eventToEdit?.let { event ->
+            binding.titleInput.setText(event.title)
+            binding.descriptionInput.setText(event.description)
+            binding.dateInput.setText(event.date)
+            binding.startTimeInput.setText(event.startTime)
+            binding.endTimeInput.setText(event.endTime)
+            binding.locationInput.setText(event.location)
+            binding.typeInput.setText(event.type, false)
+            binding.priorityInput.setText(event.priority, false)
+        }
     }
 
     private fun saveEvent() {
-        val event = EventModel(
-            title = binding.titleEditText.text.toString().trim(),
-            description = binding.descriptionEditText.text.toString().trim(),
-            date = selectedDate.time,
-            startTime = startTime.time,
-            endTime = endTime.time,
-            location = binding.locationEditText.text.toString().trim(),
-            type = (binding.typeLayout.editText as? AutoCompleteTextView)?.text.toString()
+        if (!validateFields()) {
+            return
+        }
+
+        val event = Event(
+            id = eventToEdit?.id ?: UUID.randomUUID().toString(),
+            userId = eventToEdit?.userId ?: "",
+            title = binding.titleInput.text.toString(),
+            description = binding.descriptionInput.text.toString(),
+            date = binding.dateInput.text.toString(),
+            startTime = binding.startTimeInput.text.toString(),
+            endTime = binding.endTimeInput.text.toString(),
+            location = binding.locationInput.text.toString(),
+            type = binding.typeInput.text.toString(),
+            priority = binding.priorityInput.text.toString()
         )
 
         onEventSavedListener?.invoke(event)
         dismiss()
+    }
+
+    private fun validateFields(): Boolean {
+        var isValid = true
+
+        if (binding.titleInput.text.isNullOrBlank()) {
+            binding.titleInput.error = "Введите название события"
+            isValid = false
+        }
+        if (binding.dateInput.text.isNullOrBlank()) {
+            binding.dateInput.error = "Выберите дату"
+            isValid = false
+        }
+        if (binding.startTimeInput.text.isNullOrBlank()) {
+            binding.startTimeInput.error = "Выберите время начала"
+            isValid = false
+        }
+        if (binding.endTimeInput.text.isNullOrBlank()) {
+            binding.endTimeInput.error = "Выберите время окончания"
+            isValid = false
+        }
+        if (binding.typeInput.text.isNullOrBlank()) {
+            binding.typeInput.error = "Выберите тип события"
+            isValid = false
+        }
+        if (binding.priorityInput.text.isNullOrBlank()) {
+            binding.priorityInput.error = "Выберите приоритет"
+            isValid = false
+        }
+
+        return isValid
+    }
+
+    fun setOnEventSavedListener(listener: (Event) -> Unit) {
+        onEventSavedListener = listener
     }
 
     override fun onDestroyView() {
@@ -250,13 +242,11 @@ class AddEventDialog : BottomSheetDialogFragment() {
         _binding = null
     }
 
-    fun setOnEventSavedListener(listener: (EventModel) -> Unit) {
-        onEventSavedListener = listener
-    }
-
     companion object {
-        fun newInstance(event: EventModel? = null) = AddEventDialog().apply {
-            eventToEdit = event
+        fun newInstance(eventToEdit: Event? = null): AddEventDialog {
+            return AddEventDialog().apply {
+                this.eventToEdit = eventToEdit
+            }
         }
     }
 } 

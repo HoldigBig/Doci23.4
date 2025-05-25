@@ -9,4 +9,4 @@ data class HomeworkModel(
     val dueDate: String = "",
     val groupId: String = "",
     val assignmentDate: String = ""
-)
+) 

@@ -12,6 +12,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Doci40"
+        android:enableOnBackInvokedCallback="true"
         tools:targetApi="31">
         <activity
             android:name=".CalendarActivity"
@@ -23,13 +24,7 @@
             android:name=".FoodActivity"
             android:exported="false" />
         <activity
-            android:name=".AddHomeworkActivity"
-            android:exported="false" />
-        <activity
             android:name=".NewsActivity"
-            android:exported="false" />
-        <activity
-            android:name=".HomeworkActivity"
             android:exported="false" />
         <activity
             android:name=".ExamsActivity"
@@ -65,6 +60,12 @@
             android:name=".news.CommentsActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".HomeworkActivity"
+            android:exported="false" />
+        <activity
+            android:name=".homework.AddHomeworkActivity"
+            android:exported="false" />
 
         <meta-data
             android:name="preloaded_fonts"

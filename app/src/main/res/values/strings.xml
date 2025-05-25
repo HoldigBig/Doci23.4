@@ -1,11 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">NewDoci3.0</string>
+    <string name="app_name">Doci40</string>
     <string name="app_logo">Doci Logo</string>
     <string name="teacher">Наставник</string>
     <string name="student">Студент</string>
     <string name="app_title">Doci</string>
     <string name="app_description">Умный помощник для студентов и преподавателей</string>
     <string name="app_version">Версия 1.0.0</string>
+    <string name="back">Назад</string>
+
+    <!-- Домашние задания -->
+    <string name="homework_title">Домашние задания</string>
+    <string name="no_homework">Нет домашних заданий</string>
+    <string name="due_date">Сдать: %s</string>
+    <string name="assignment_date">Выставлено: %s</string>
+    <string name="all">Все</string>
 
     <string name="choose_role">Выберите роль</string>
 
@@ -15,24 +24,22 @@
     <string name="semester_number">%d семестр</string>
     <string name="auth_error">Ошибка авторизации</string>
     <string name="date_updated">Дата обновлена</string>
-    <string name="update_error">Ошибка обновления: %s</string>
-    <string name="load_error">Ошибка загрузки экзаменов: %s</string>
-    <string name="retry">Повторить</string>
     <string name="no_exams">В этом семестре пока нет экзаменов</string>
     <string name="all_exams">Все экзамены</string>
 
+    <!-- Общие строки -->
     <string name="ok">ОК</string>
     <string name="cancel">Отмена</string>
-
-    <!-- Общие строки -->
     <string name="save">Сохранить</string>
     <string name="delete">Удалить</string>
     <string name="edit">Редактировать</string>
+    <string name="retry">Повторить</string>
+    <string name="load_error">Ошибка загрузки: %1$s</string>
+    <string name="update_error">Ошибка обновления: %1$s</string>
 
     <!-- Расписание -->
-    <string name="add_schedule">Добавить расписание</string>
-    <string name="edit_schedule">Редактировать расписание</string>
-    <string name="no_schedule_data">Нет данных о расписании</string>
+    <string name="add_schedule">Добавить занятие</string>
+    <string name="edit_schedule">Редактировать занятие</string>
     <string name="schedule_subject_name">Название предмета</string>
     <string name="schedule_teacher_name">ФИО преподавателя</string>
     <string name="schedule_room_number">Номер аудитории</string>
@@ -42,6 +49,7 @@
     <string name="schedule_lesson_type">Тип занятия</string>
     <string name="schedule_group">Группа</string>
     <string name="schedule_week_type">Тип недели</string>
+    <string name="no_schedule_data">Нет занятий</string>
 
     <!-- Посещаемость -->
     <string name="attendance_overall_attendance">Общая посещаемость</string>
@@ -55,4 +63,25 @@
     <string name="attendance_view_details">Посмотреть</string>
     <string name="no_attendance_data">Нет данных о посещаемости</string>
     <string name="add_attendance_record">Добавить запись о посещаемости</string>
+    <string name="previous_month">Предыдущий месяц</string>
+    <string name="next_month">Следующий месяц</string>
+    <string name="today">Сегодня</string>
+    <string name="absent">Отсутствие</string>
+    <string name="holiday">Каникулы</string>
+    <string name="add_attendance">Добавить посещаемость</string>
+
+    <!-- События -->
+    <string name="add_event">Добавить событие</string>
+    <string name="edit_event">Редактировать событие</string>
+    <string name="event_title">Название события</string>
+    <string name="event_description">Описание</string>
+    <string name="event_date">Дата</string>
+    <string name="event_start_time">Время начала</string>
+    <string name="event_end_time">Время окончания</string>
+    <string name="event_location">Место проведения</string>
+    <string name="event_type">Тип события</string>
+    <string name="event_priority">Приоритет</string>
+    <string name="no_events">Нет событий</string>
+    <string name="load_events_error">Ошибка загрузки событий: %1$s</string>
+    <string name="save_event_error">Ошибка сохранения события: %1$s</string>
 </resources>

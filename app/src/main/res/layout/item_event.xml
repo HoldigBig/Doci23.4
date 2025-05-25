@@ -4,8 +4,9 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginBottom="8dp"
-    app:cardCornerRadius="12dp"
+    android:layout_marginHorizontal="8dp"
+    android:layout_marginVertical="4dp"
+    app:cardCornerRadius="8dp"
     app:cardElevation="2dp">
 
     <LinearLayout
@@ -18,74 +19,68 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:gravity="center_vertical">
+            android:layout_marginBottom="8dp">
 
             <TextView
-                android:id="@+id/eventTypeText"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:background="@drawable/bg_event_type"
-                android:paddingHorizontal="8dp"
-                android:paddingVertical="4dp"
-                android:textColor="@color/white"
-                android:textSize="12sp"
-                tools:text="Лекция" />
-
-            <TextView
-                android:id="@+id/eventTimeText"
+                android:id="@+id/titleText"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
                 android:layout_weight="1"
-                android:textColor="@color/gray_dark"
-                android:textSize="14sp"
-                tools:text="10:00 - 11:30" />
+                android:textSize="16sp"
+                android:textStyle="bold"
+                tools:text="Название события"/>
+
+            <TextView
+                android:id="@+id/priorityText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/bg_priority"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="2dp"
+                android:textColor="@color/white"
+                android:textSize="12sp"
+                tools:text="Высокий"
+                tools:background="@color/priority_high"/>
 
         </LinearLayout>
 
         <TextView
-            android:id="@+id/eventTitleText"
+            android:id="@+id/descriptionText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:textColor="@color/black"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            tools:text="Название события" />
-
-        <TextView
-            android:id="@+id/eventDescriptionText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:ellipsize="end"
-            android:maxLines="2"
-            android:textColor="@color/gray_dark"
+            android:layout_marginBottom="8dp"
             android:textSize="14sp"
-            tools:text="Описание события" />
+            android:maxLines="2"
+            android:ellipsize="end"
+            tools:text="Описание события в несколько строк для проверки работы ellipsize"/>
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:gravity="center_vertical"
             android:orientation="horizontal">
 
-            <ImageView
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:src="@drawable/ic_location"
-                app:tint="@color/gray_dark" />
-
             <TextView
-                android:id="@+id/eventLocationText"
+                android:id="@+id/dateTimeText"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="4dp"
                 android:layout_weight="1"
-                android:textColor="@color/gray_dark"
+                android:drawablePadding="4dp"
+                android:gravity="center_vertical"
                 android:textSize="14sp"
-                tools:text="Аудитория 123" />
+                app:drawableStartCompat="@drawable/ic_time"
+                tools:text="01.01.2024 10:00 - 11:00"/>
+
+            <TextView
+                android:id="@+id/locationText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:drawablePadding="4dp"
+                android:gravity="center_vertical"
+                android:textSize="14sp"
+                app:drawableStartCompat="@drawable/ic_location"
+                tools:text="Аудитория 101"/>
 
         </LinearLayout>
 
