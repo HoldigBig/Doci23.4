@@ -3,6 +3,7 @@ package com.example.doci40.exams.models
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
+import java.util.Date
 
 data class ExamModel(
     val examId: String = "",
@@ -17,47 +18,82 @@ data class ExamModel(
     val isActive: Boolean = true,
     val semester: Int = 1
 ) {
-    // Получение дня недели
-    val dayOfWeek: String
-        get() {
-            return try {
-                val parsedDate = dateFormatter.parse(date)
-                val calendar = Calendar.getInstance().apply {
-                    time = parsedDate ?: return "???"
-                }
-                val days = arrayOf("???", "Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб")
-                days[calendar.get(Calendar.DAY_OF_WEEK)]
-            } catch (e: Exception) {
-                "???"
-            }
+    @JvmField
+    val dayOfWeek: String = try {
+        val parsedDate = dateFormatter.parse(date)
+        val calendar = Calendar.getInstance().apply {
+            time = parsedDate ?: return@apply
         }
-
-    // Получение числа месяца
-    val dayNumber: String
-        get() {
-            return try {
-                val parsedDate = dateFormatter.parse(date)
-                val calendar = Calendar.getInstance().apply {
-                    time = parsedDate ?: return "??"
-                }
-                calendar.get(Calendar.DAY_OF_MONTH).toString()
-            } catch (e: Exception) {
-                "??"
-            }
-        }
-
-    // Получение времени экзамена
-    val time: String
-        get() = "$startTime - $endTime"
-
-    fun isValid(): Boolean {
-        return examId.isNotBlank() &&
-                subject.isNotBlank() &&
-                date.isNotBlank() &&
-                startTime.isNotBlank() &&
-                endTime.isNotBlank() &&
-                semester > 0
+        val days = arrayOf("???", "Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб")
+        days[calendar.get(Calendar.DAY_OF_WEEK)]
+    } catch (e: Exception) {
+        "???"
     }
+
+    @JvmField
+    val dayNumber: String = try {
+        val parsedDate = dateFormatter.parse(date)
+        val calendar = Calendar.getInstance().apply {
+            time = parsedDate ?: return@apply
+        }
+        calendar.get(Calendar.DAY_OF_MONTH).toString()
+    } catch (e: Exception) {
+        "??"
+    }
+
+    @JvmField
+    val time: String = "$startTime - $endTime"
+
+    @JvmField
+    val formattedDate: String = try {
+        val parsedDate = SimpleDateFormat("dd.MM.yyyy", Locale("ru")).parse(date)
+        SimpleDateFormat("d MMMM yyyy", Locale("ru")).format(parsedDate ?: Date())
+    } catch (e: Exception) {
+        date
+    }
+
+    @JvmField
+    val formattedStartTime: String = try {
+        val parsedTime = timeFormatter.parse(startTime)
+        if (parsedTime == null) {
+            startTime
+        } else {
+            timeFormatter.format(parsedTime)
+        }
+    } catch (e: Exception) {
+        startTime
+    }
+
+    @JvmField
+    val formattedEndTime: String = try {
+        val parsedTime = timeFormatter.parse(endTime)
+        if (parsedTime == null) {
+            endTime
+        } else {
+            timeFormatter.format(parsedTime)
+        }
+    } catch (e: Exception) {
+        endTime
+    }
+
+    @JvmField
+    val fullFormattedTime: String = "$startTime - $endTime"
+
+    @JvmField
+    val upcoming: Boolean = try {
+        val examDate = dateFormatter.parse(date)
+        val now = Date()
+        examDate?.after(now) ?: false
+    } catch (e: Exception) {
+        false
+    }
+
+    @JvmField
+    val valid: Boolean = subject.isNotBlank() && date.isNotBlank() && 
+            startTime.isNotBlank() && endTime.isNotBlank()
+
+    @JvmField
+    val active: Boolean = isActive
 
     companion object {
         // Предметы
@@ -85,12 +121,16 @@ data class ExamModel(
 
         private val dateFormatter = SimpleDateFormat("dd.MM.yyyy", Locale("ru"))
         private val timeFormatter = SimpleDateFormat("HH:mm", Locale("ru"))
-        private val fullDateFormatter = SimpleDateFormat("dd MMMM yyyy", Locale("ru"))
+        private val fullDateFormatter = SimpleDateFormat("d MMMM yyyy", Locale("ru"))
 
         fun formatDate(date: String): String {
             return try {
                 val parsedDate = dateFormatter.parse(date)
-                fullDateFormatter.format(parsedDate ?: return date)
+                if (parsedDate == null) {
+                    date
+                } else {
+                    fullDateFormatter.format(parsedDate)
+                }
             } catch (e: Exception) {
                 date
             }
@@ -99,7 +139,11 @@ data class ExamModel(
         fun formatTime(time: String): String {
             return try {
                 val parsedTime = timeFormatter.parse(time)
-                timeFormatter.format(parsedTime ?: return time)
+                if (parsedTime == null) {
+                    time
+                } else {
+                    timeFormatter.format(parsedTime)
+                }
             } catch (e: Exception) {
                 time
             }
@@ -128,25 +172,6 @@ data class ExamModel(
                 in 0..5 -> 2   // Январь - Июнь: 2 семестр
                 else -> 3      // Летние месяцы: 3 семестр (если есть)
             }
-        }
-    }
-
-    // Методы экземпляра
-    fun getFormattedDate(): String = formatDate(date)
-
-    fun getFormattedStartTime(): String = formatTime(startTime)
-
-    fun getFormattedEndTime(): String = formatTime(endTime)
-
-    fun getFullFormattedTime(): String = "${getFormattedStartTime()} - ${getFormattedEndTime()}"
-
-    fun isUpcoming(): Boolean {
-        try {
-            val examDate = dateFormatter.parse(date) ?: return false
-            val now = Calendar.getInstance().time
-            return examDate.after(now)
-        } catch (e: Exception) {
-            return false
         }
     }
 }

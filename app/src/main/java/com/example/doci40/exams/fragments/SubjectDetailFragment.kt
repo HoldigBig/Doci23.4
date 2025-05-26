@@ -14,6 +14,7 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.progressindicator.CircularProgressIndicator
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import com.example.doci40.R
 import com.example.doci40.AddExamActivity
 import com.example.doci40.exams.adapters.ExamDetailAdapter
@@ -31,9 +32,14 @@ class SubjectDetailFragment : Fragment() {
     private lateinit var examsRecyclerView: RecyclerView
     private lateinit var examAdapter: ExamDetailAdapter
     private lateinit var addExamButton: FloatingActionButton
+    private lateinit var loadingView: View
+    private lateinit var emptyView: View
+    private lateinit var errorView: View
 
     private lateinit var auth: FirebaseAuth
     private lateinit var db: FirebaseFirestore
+    private var subjectListener: ListenerRegistration? = null
+    private var examsListener: ListenerRegistration? = null
 
     private var subjectName: String? = null
     private var termId: Int = 1
@@ -78,6 +84,9 @@ class SubjectDetailFragment : Fragment() {
         workRating = view.findViewById(R.id.workRating)
         examsRecyclerView = view.findViewById(R.id.examsRecyclerView)
         addExamButton = view.findViewById(R.id.addExamButton)
+        loadingView = view.findViewById(R.id.loadingView)
+        emptyView = view.findViewById(R.id.emptyView)
+        errorView = view.findViewById(R.id.errorView)
 
         // Настраиваем RecyclerView
         examAdapter = ExamDetailAdapter()
@@ -101,21 +110,40 @@ class SubjectDetailFragment : Fragment() {
     }
 
     private fun loadSubjectDetails() {
-        val currentUser = auth.currentUser ?: return
+        showLoading()
+        
+        val currentUser = auth.currentUser ?: run {
+            showError("Необходимо войти в аккаунт")
+            return
+        }
 
-        db.collection("users")
+        // Отменяем предыдущий слушатель
+        subjectListener?.remove()
+
+        subjectListener = db.collection("users")
             .document(currentUser.uid)
             .collection("results")
             .document("term_$termId")
-            .get()
-            .addOnSuccessListener { document ->
-                if (document != null && document.exists()) {
-                    val termResult = document.toObject(com.example.doci40.exams.models.TermResult::class.java)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    showError("Ошибка при загрузке данных: ${error.message}")
+                    return@addSnapshotListener
+                }
+
+                if (snapshot != null && snapshot.exists()) {
+                    val termResult = snapshot.toObject(com.example.doci40.exams.models.TermResult::class.java)
                     termResult?.let { result ->
                         // Находим данные по текущему предмету
                         val subjectResult = result.subjects.find { it.name == subjectName }
-                        subjectResult?.let { updateUI(it) }
-                    }
+                        if (subjectResult != null) {
+                            updateUI(subjectResult)
+                            showContent()
+                        } else {
+                            showEmpty()
+                        }
+                    } ?: showError("Ошибка при загрузке данных")
+                } else {
+                    showEmpty()
                 }
             }
     }
@@ -123,17 +151,32 @@ class SubjectDetailFragment : Fragment() {
     private fun loadExams() {
         val currentUser = auth.currentUser ?: return
 
-        db.collection("users")
+        // Отменяем предыдущий слушатель
+        examsListener?.remove()
+
+        examsListener = db.collection("users")
             .document(currentUser.uid)
             .collection("exams")
             .whereEqualTo("subject", subjectName)
             .whereEqualTo("semester", termId)
-            .get()
-            .addOnSuccessListener { documents ->
-                val exams = documents.mapNotNull { doc ->
-                    doc.toObject(ExamModel::class.java)
-                }.sortedBy { it.date }
-                examAdapter.updateExams(exams)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    showError("Ошибка при загрузке экзаменов: ${error.message}")
+                    return@addSnapshotListener
+                }
+
+                if (snapshot != null) {
+                    val exams = snapshot.documents.mapNotNull { doc ->
+                        doc.toObject(ExamModel::class.java)
+                    }.sortedBy { it.date }
+                    
+                    if (exams.isEmpty()) {
+                        showEmpty()
+                    } else {
+                        examAdapter.updateExams(exams)
+                        showContent()
+                    }
+                }
             }
     }
 
@@ -148,6 +191,42 @@ class SubjectDetailFragment : Fragment() {
         behaviourRating.rating = 4f
         attendanceRating.rating = 4f
         workRating.rating = 4f
+    }
+
+    private fun showLoading() {
+        loadingView.visibility = View.VISIBLE
+        examsRecyclerView.visibility = View.GONE
+        emptyView.visibility = View.GONE
+        errorView.visibility = View.GONE
+    }
+
+    private fun showContent() {
+        loadingView.visibility = View.GONE
+        examsRecyclerView.visibility = View.VISIBLE
+        emptyView.visibility = View.GONE
+        errorView.visibility = View.GONE
+    }
+
+    private fun showEmpty() {
+        loadingView.visibility = View.GONE
+        examsRecyclerView.visibility = View.GONE
+        emptyView.visibility = View.VISIBLE
+        errorView.visibility = View.GONE
+    }
+
+    private fun showError(message: String) {
+        loadingView.visibility = View.GONE
+        examsRecyclerView.visibility = View.GONE
+        emptyView.visibility = View.GONE
+        errorView.visibility = View.VISIBLE
+        view?.findViewById<TextView>(R.id.errorText)?.text = message
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        // Отменяем слушатели при уничтожении представления
+        subjectListener?.remove()
+        examsListener?.remove()
     }
 
     companion object {

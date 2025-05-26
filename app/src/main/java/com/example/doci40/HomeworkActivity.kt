@@ -10,15 +10,20 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.example.doci40.databinding.ActivityHomeworkBinding
-import com.example.doci40.homework.AddHomeworkActivity
+import com.example.doci40.AddHomeworkActivity
 import com.example.doci40.homework.adapters.DayAdapter
 import com.example.doci40.homework.adapters.HomeworkAdapter
 import com.example.doci40.homework.models.DayItem
 import com.example.doci40.homework.models.HomeworkModel
 import com.google.android.material.chip.Chip
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -30,6 +35,8 @@ class HomeworkActivity : AppCompatActivity(), DayAdapter.DayClickListener {
     private lateinit var homeworkAdapter: HomeworkAdapter
     private lateinit var dayAdapter: DayAdapter
     private var allHomeworkList: List<HomeworkModel> = listOf()
+
+    private var snapshotListener: ListenerRegistration? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -53,11 +60,13 @@ class HomeworkActivity : AppCompatActivity(), DayAdapter.DayClickListener {
         setupViews()
         setupClickListeners()
         setupDaysRecyclerView()
-        loadHomework()
+        setupRecyclerView()
+        startListeningForChanges()
     }
 
     private fun setupViews() {
         homeworkAdapter = HomeworkAdapter()
+        binding.homeworkRecyclerView.layoutManager = LinearLayoutManager(this)
         binding.homeworkRecyclerView.adapter = homeworkAdapter
 
         binding.subjectsChipGroup.setOnCheckedChangeListener { group, checkedId ->
@@ -71,7 +80,8 @@ class HomeworkActivity : AppCompatActivity(), DayAdapter.DayClickListener {
         binding.backButton.setOnClickListener { finish() }
         
         binding.addHomeworkButton.setOnClickListener {
-            startActivity(Intent(this, AddHomeworkActivity::class.java))
+            val intent = Intent(this, AddHomeworkActivity::class.java)
+            startActivity(intent)
         }
     }
 
@@ -128,51 +138,54 @@ class HomeworkActivity : AppCompatActivity(), DayAdapter.DayClickListener {
                 calendar.get(Calendar.DAY_OF_YEAR) == today.get(Calendar.DAY_OF_YEAR)
     }
 
-    private fun loadHomework() {
+    private fun startListeningForChanges() {
         val currentUser = auth.currentUser
-        currentUser?.let { user ->
-            db.collection("users").document(user.uid).get()
-                .addOnSuccessListener { userDoc ->
-                    if (userDoc.exists()) {
-                        val groupId = userDoc.getString("group")
-                        if (groupId != null) {
-                            db.collection("homework")
-                                .whereEqualTo("groupId", groupId)
-                                .addSnapshotListener { snapshot, e ->
-                                    if (e != null) {
-                                        showError("Ошибка при загрузке заданий")
-                                        return@addSnapshotListener
-                                    }
+        if (currentUser == null) {
+            Toast.makeText(this, "Ошибка авторизации", Toast.LENGTH_SHORT).show()
+            return
+        }
 
-                                    val homeworkList = mutableListOf<HomeworkModel>()
-                                    snapshot?.documents?.forEach { doc ->
-                                        val homework = HomeworkModel(
-                                            id = doc.id,
-                                            subject = doc.getString("subject") ?: "",
-                                            title = doc.getString("title") ?: "",
-                                            description = doc.getString("description") ?: "",
-                                            dueDate = doc.getString("dueDate") ?: "",
-                                            teacher = doc.getString("teacher") ?: "",
-                                            groupId = doc.getString("groupId") ?: "",
-                                            assignmentDate = doc.getString("assignmentDate") ?: ""
-                                        )
+        // Сначала получаем groupId пользователя
+        db.collection("users").document(currentUser.uid).get()
+            .addOnSuccessListener { document ->
+                val groupId = document.getString("group")
+                if (groupId != null) {
+                    // Теперь слушаем изменения в коллекции homework с фильтром по groupId
+                    snapshotListener = db.collection("homework")
+                        .whereEqualTo("groupId", groupId)
+                        .addSnapshotListener { snapshot, error ->
+                            if (error != null) {
+                                Log.e(TAG, "Ошибка при получении данных: ", error)
+                                Toast.makeText(this, "Ошибка при получении данных: ${error.message}", Toast.LENGTH_SHORT).show()
+                                return@addSnapshotListener
+                            }
+
+                            if (snapshot != null) {
+                                val homeworkList = mutableListOf<HomeworkModel>()
+                                for (document in snapshot.documents) {
+                                    val homework = document.toObject(HomeworkModel::class.java)
+                                    if (homework != null) {
+                                        // Добавляем id документа в модель
+                                        homework.id = document.id
                                         homeworkList.add(homework)
                                     }
-                                    allHomeworkList = homeworkList
-                                    updateUI(homeworkList)
-                                    updateSubjectFilter(homeworkList)
                                 }
-                        } else {
-                            showError("Группа не найдена")
+                                
+                                // Сортируем по дате (сначала новые)
+                                homeworkList.sortByDescending { it.dueDate }
+                                
+                                allHomeworkList = homeworkList
+                                updateUI(homeworkList)
+                                updateSubjectFilter(homeworkList)
+                            }
                         }
-                    } else {
-                        showError("Пользователь не найден")
-                    }
+                } else {
+                    Toast.makeText(this, "Группа не найдена", Toast.LENGTH_SHORT).show()
                 }
-                .addOnFailureListener { e ->
-                    showError("Ошибка: ${e.message}")
-                }
-        }
+            }
+            .addOnFailureListener { e ->
+                Toast.makeText(this, "Ошибка при получении данных пользователя: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
     }
 
     private fun updateUI(homeworkList: List<HomeworkModel>) {
@@ -182,7 +195,7 @@ class HomeworkActivity : AppCompatActivity(), DayAdapter.DayClickListener {
         } else {
             binding.emptyState.visibility = View.GONE
             binding.homeworkRecyclerView.visibility = View.VISIBLE
-            homeworkAdapter.setData(homeworkList)
+            homeworkAdapter.submitList(homeworkList)
         }
     }
 
@@ -240,7 +253,67 @@ class HomeworkActivity : AppCompatActivity(), DayAdapter.DayClickListener {
         }
     }
 
-    private fun showError(message: String) {
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+    private fun setupRecyclerView() {
+        homeworkAdapter.setOnHomeworkClickListener { homework ->
+            showHomeworkOptions(homework)
+        }
+    }
+
+    private fun showHomeworkOptions(homework: HomeworkModel) {
+        val options = arrayOf("Редактировать", "Удалить")
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Действия с домашним заданием")
+            .setItems(options) { dialog, which ->
+                when (which) {
+                    0 -> editHomework(homework)
+                    1 -> deleteHomework(homework)
+                }
+            }
+            .show()
+    }
+
+    private fun editHomework(homework: HomeworkModel) {
+        val intent = Intent(this, AddHomeworkActivity::class.java).apply {
+            putExtra("homework_id", homework.id)
+            putExtra("subject", homework.subject)
+            putExtra("title", homework.title)
+            putExtra("description", homework.description)
+            putExtra("due_date", homework.dueDate)
+            putExtra("teacher", homework.teacher)
+            putExtra("group_id", homework.groupId)
+            putExtra("assignment_date", homework.assignmentDate)
+        }
+        startActivity(intent)
+    }
+
+    private fun deleteHomework(homework: HomeworkModel) {
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Удаление домашнего задания")
+            .setMessage("Вы уверены, что хотите удалить это домашнее задание?")
+            .setPositiveButton("Удалить") { dialog, _ ->
+                val currentUser = auth.currentUser
+                if (currentUser != null) {
+                    db.collection("homework")
+                        .document(homework.id)
+                        .delete()
+                        .addOnSuccessListener {
+                            Toast.makeText(this, "Домашнее задание удалено", Toast.LENGTH_SHORT).show()
+                        }
+                        .addOnFailureListener { e ->
+                            Toast.makeText(this, "Ошибка при удалении: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
+                }
+            }
+            .setNegativeButton("Отмена", null)
+            .show()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        snapshotListener?.remove()
+    }
+
+    companion object {
+        private const val TAG = "HomeworkActivity"
     }
 } 

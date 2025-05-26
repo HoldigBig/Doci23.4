@@ -8,6 +8,8 @@ import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.doci40.R
@@ -25,9 +27,8 @@ import com.google.firebase.storage.FirebaseStorage
 
 class NewsAdapter(
     private val onShareClick: (NewsItem) -> Unit
-) : RecyclerView.Adapter<NewsAdapter.NewsViewHolder>() {
+) : ListAdapter<NewsItem, NewsAdapter.NewsViewHolder>(NewsDiffCallback()) {
 
-    private val items = mutableListOf<NewsItem>()
     private val dateFormat = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
@@ -39,22 +40,24 @@ class NewsAdapter(
     }
 
     override fun onBindViewHolder(holder: NewsViewHolder, position: Int) {
-        val item = items[position]
+        val item = getItem(position)
         holder.bind(item)
         
         // Предварительная загрузка следующего элемента
-        if (position < items.size - 1) {
-            val nextItem = items[position + 1]
+        if (position < itemCount - 1) {
+            val nextItem = getItem(position + 1)
             holder.preloadNextItem(nextItem)
         }
     }
 
-    override fun getItemCount(): Int = items.size
+    private class NewsDiffCallback : DiffUtil.ItemCallback<NewsItem>() {
+        override fun areItemsTheSame(oldItem: NewsItem, newItem: NewsItem): Boolean {
+            return oldItem.id == newItem.id
+        }
 
-    fun submitList(newItems: List<NewsItem>) {
-        items.clear()
-        items.addAll(newItems)
-        notifyDataSetChanged()
+        override fun areContentsTheSame(oldItem: NewsItem, newItem: NewsItem): Boolean {
+            return oldItem == newItem
+        }
     }
 
     inner class NewsViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -69,6 +72,8 @@ class NewsAdapter(
         private val commentButton: ImageButton = itemView.findViewById(R.id.commentButton)
         private val commentsCount: TextView = itemView.findViewById(R.id.commentsCount)
         private val shareButton: ImageButton = itemView.findViewById(R.id.shareButton)
+        private var likesListener: () -> Unit = {}
+        private var commentsListener: () -> Unit = {}
 
         fun preloadNextItem(item: NewsItem) {
             if (item.schoolLogo.isNotEmpty()) {
@@ -79,6 +84,10 @@ class NewsAdapter(
         }
 
         fun bind(item: NewsItem) {
+            // Отписываемся от предыдущих слушателей
+            likesListener()
+            commentsListener()
+
             schoolName.text = item.schoolName
             publishDate.text = dateFormat.format(Date(item.timestamp.seconds * 1000))
             newsTitle.text = item.name
@@ -110,17 +119,39 @@ class NewsAdapter(
                 newsImage.visibility = View.GONE
             }
 
-            // Обработка лайков
-            likeButton.setImageResource(
-                if (item.isLiked) R.drawable.ic_heart_filled
-                else R.drawable.ic_heart_outline
-            )
-            // Устанавливаем цвет сердечка в зависимости от состояния лайка
-            val heartColor = if (item.isLiked) R.color.error else R.color.gray
-            likeButton.setColorFilter(ContextCompat.getColor(itemView.context, heartColor), PorterDuff.Mode.SRC_IN)
+            // Настройка слушателя для лайков в реальном времени
+            val currentUser = auth.currentUser
+            if (currentUser != null) {
+                val newsRef = db.collection("news").document(item.id)
+                val userLikeRef = newsRef.collection("likes").document(currentUser.uid)
 
+                // Слушатель для обновления состояния лайка
+                likesListener = userLikeRef.addSnapshotListener { snapshot, e ->
+                    if (e != null) return@addSnapshotListener
+                    item.isLiked = snapshot?.exists() ?: false
+                    updateLikeUI(item)
+                }.let { { it.remove() } }
+
+                // Слушатель для обновления количества лайков
+                newsRef.addSnapshotListener { snapshot, e ->
+                    if (e != null) return@addSnapshotListener
+                    val newLikesCount = snapshot?.getString("likesCount") ?: "0"
+                    item.likesCount = newLikesCount
+                    likesCount.text = newLikesCount
+                }
+
+                // Слушатель для обновления количества комментариев
+                commentsListener = newsRef.collection("comments")
+                    .addSnapshotListener { snapshot, e ->
+                        if (e != null) return@addSnapshotListener
+                        val newCommentsCount = (snapshot?.size() ?: 0).toString()
+                        item.commentsCount = newCommentsCount
+                        commentsCount.text = newCommentsCount
+                    }.let { { it.remove() } }
+            }
+
+            // Обработка нажатия на кнопку лайка
             likeButton.setOnClickListener {
-                val currentUser = auth.currentUser
                 if (currentUser == null) {
                     Toast.makeText(itemView.context, "Необходимо войти в аккаунт", Toast.LENGTH_SHORT).show()
                     return@setOnClickListener
@@ -129,30 +160,20 @@ class NewsAdapter(
                 val newsRef = db.collection("news").document(item.id)
                 val userLikeRef = newsRef.collection("likes").document(currentUser.uid)
 
-                // Проверяем текущее состояние лайка
-                userLikeRef.get().addOnSuccessListener { document ->
-                    if (document.exists()) {
+                db.runTransaction { transaction ->
+                    val newsDoc = transaction.get(newsRef)
+                    val userLikeDoc = transaction.get(userLikeRef)
+                    
+                    if (userLikeDoc.exists()) {
                         // Убираем лайк
-                        userLikeRef.delete().addOnSuccessListener {
-                            val newLikesCount = (item.getLikesCountInt() - 1).toString()
-                            newsRef.update("likesCount", newLikesCount)
-                            // Обновляем UI
-                            item.isLiked = false
-                            likesCount.text = newLikesCount
-                            likeButton.setImageResource(R.drawable.ic_heart_outline)
-                            likeButton.setColorFilter(ContextCompat.getColor(itemView.context, R.color.gray), PorterDuff.Mode.SRC_IN) // Устанавливаем серый цвет
-                        }
+                        transaction.delete(userLikeRef)
+                        val newLikesCount = (item.getLikesCountInt() - 1).toString()
+                        transaction.update(newsRef, "likesCount", newLikesCount)
                     } else {
                         // Добавляем лайк
-                        userLikeRef.set(mapOf("timestamp" to Timestamp.now())).addOnSuccessListener {
-                            val newLikesCount = (item.getLikesCountInt() + 1).toString()
-                            newsRef.update("likesCount", newLikesCount)
-                            // Обновляем UI
-                            item.isLiked = true
-                            likesCount.text = newLikesCount
-                            likeButton.setImageResource(R.drawable.ic_heart_filled)
-                            likeButton.setColorFilter(ContextCompat.getColor(itemView.context, R.color.error), PorterDuff.Mode.SRC_IN) // Устанавливаем красный цвет
-                        }
+                        transaction.set(userLikeRef, mapOf("timestamp" to Timestamp.now()))
+                        val newLikesCount = (item.getLikesCountInt() + 1).toString()
+                        transaction.update(newsRef, "likesCount", newLikesCount)
                     }
                 }.addOnFailureListener {
                     Toast.makeText(itemView.context, "Ошибка при обновлении лайка", Toast.LENGTH_SHORT).show()
@@ -171,6 +192,21 @@ class NewsAdapter(
             shareButton.setOnClickListener {
                 onShareClick(item)
             }
+
+            // Начальное обновление UI лайка
+            updateLikeUI(item)
+        }
+
+        private fun updateLikeUI(item: NewsItem) {
+            likeButton.setImageResource(
+                if (item.isLiked) R.drawable.ic_heart_filled
+                else R.drawable.ic_heart_outline
+            )
+            val heartColor = if (item.isLiked) R.color.error else R.color.gray
+            likeButton.setColorFilter(
+                ContextCompat.getColor(itemView.context, heartColor),
+                PorterDuff.Mode.SRC_IN
+            )
         }
     }
 }

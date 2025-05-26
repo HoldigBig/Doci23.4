@@ -4,46 +4,76 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.example.doci40.R
 import com.example.doci40.homework.models.HomeworkModel
+import java.text.SimpleDateFormat
+import java.util.Locale
 
-class HomeworkAdapter : RecyclerView.Adapter<HomeworkAdapter.HomeworkViewHolder>() {
-    private var homeworkList: List<HomeworkModel> = listOf()
+class HomeworkAdapter : ListAdapter<HomeworkModel, HomeworkAdapter.HomeworkViewHolder>(HomeworkDiffCallback()) {
 
-    fun setData(newHomework: List<HomeworkModel>) {
-        homeworkList = newHomework
-        notifyDataSetChanged()
+    private var onHomeworkClickListener: ((HomeworkModel) -> Unit)? = null
+
+    fun setOnHomeworkClickListener(listener: (HomeworkModel) -> Unit) {
+        onHomeworkClickListener = listener
     }
 
-    fun getCurrentList(): List<HomeworkModel> = homeworkList
-
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): HomeworkViewHolder {
-        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_homework, parent, false)
-        return HomeworkViewHolder(view)
+        val view = LayoutInflater.from(parent.context)
+            .inflate(R.layout.item_homework, parent, false)
+        return HomeworkViewHolder(view, onHomeworkClickListener)
     }
 
     override fun onBindViewHolder(holder: HomeworkViewHolder, position: Int) {
-        holder.bind(homeworkList[position])
+        holder.bind(getItem(position))
     }
 
-    override fun getItemCount(): Int = homeworkList.size
-
-    inner class HomeworkViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+    class HomeworkViewHolder(
+        itemView: View,
+        private val onHomeworkClickListener: ((HomeworkModel) -> Unit)?
+    ) : RecyclerView.ViewHolder(itemView) {
         private val subjectText: TextView = itemView.findViewById(R.id.subjectText)
-        private val teacherText: TextView = itemView.findViewById(R.id.teacherText)
-        private val dueDateText: TextView = itemView.findViewById(R.id.dueDateText)
         private val titleText: TextView = itemView.findViewById(R.id.titleText)
         private val descriptionText: TextView = itemView.findViewById(R.id.descriptionText)
-        private val assignmentDateText: TextView = itemView.findViewById(R.id.assignmentDateText)
+        private val dueDateText: TextView = itemView.findViewById(R.id.dueDateText)
+        private val teacherText: TextView = itemView.findViewById(R.id.teacherText)
 
         fun bind(homework: HomeworkModel) {
             subjectText.text = homework.subject
-            teacherText.text = homework.teacher
-            dueDateText.text = itemView.context.getString(R.string.due_date, homework.dueDate)
             titleText.text = homework.title
             descriptionText.text = homework.description
-            assignmentDateText.text = "Выставлено: ${homework.assignmentDate}"
+            
+            // Форматируем дату
+            val inputFormat = SimpleDateFormat("dd.MM.yyyy", Locale("ru"))
+            val outputFormat = SimpleDateFormat("d MMMM yyyy", Locale("ru"))
+            try {
+                val date = inputFormat.parse(homework.dueDate)
+                if (date != null) {
+                    dueDateText.text = outputFormat.format(date)
+                } else {
+                    dueDateText.text = homework.dueDate
+                }
+            } catch (e: Exception) {
+                dueDateText.text = homework.dueDate
+            }
+
+            teacherText.text = homework.teacher
+
+            itemView.setOnClickListener {
+                onHomeworkClickListener?.invoke(homework)
+            }
+        }
+    }
+
+    private class HomeworkDiffCallback : DiffUtil.ItemCallback<HomeworkModel>() {
+        override fun areItemsTheSame(oldItem: HomeworkModel, newItem: HomeworkModel): Boolean {
+            return oldItem.id == newItem.id
+        }
+
+        override fun areContentsTheSame(oldItem: HomeworkModel, newItem: HomeworkModel): Boolean {
+            return oldItem == newItem
         }
     }
 } 

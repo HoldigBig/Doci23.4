@@ -4,20 +4,15 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.example.doci40.R
 import com.example.doci40.exams.models.SubjectResult
 
 class SubjectResultAdapter(
     private val onSubjectClick: (SubjectResult) -> Unit
-) : RecyclerView.Adapter<SubjectResultAdapter.ViewHolder>() {
-
-    private var subjects = listOf<SubjectResult>()
-
-    fun updateSubjects(newSubjects: List<SubjectResult>) {
-        subjects = newSubjects
-        notifyDataSetChanged()
-    }
+) : ListAdapter<SubjectResult, SubjectResultAdapter.ViewHolder>(SubjectDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view = LayoutInflater.from(parent.context)
@@ -26,11 +21,8 @@ class SubjectResultAdapter(
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val subject = subjects[position]
-        holder.bind(subject)
+        holder.bind(getItem(position))
     }
-
-    override fun getItemCount() = subjects.size
 
     class ViewHolder(
         itemView: View,
@@ -48,6 +40,16 @@ class SubjectResultAdapter(
             itemView.setOnClickListener {
                 onSubjectClick(subject)
             }
+        }
+    }
+
+    private class SubjectDiffCallback : DiffUtil.ItemCallback<SubjectResult>() {
+        override fun areItemsTheSame(oldItem: SubjectResult, newItem: SubjectResult): Boolean {
+            return oldItem.name == newItem.name
+        }
+
+        override fun areContentsTheSame(oldItem: SubjectResult, newItem: SubjectResult): Boolean {
+            return oldItem == newItem
         }
     }
 }

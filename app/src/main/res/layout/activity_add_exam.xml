@@ -172,6 +172,24 @@
 
             </com.google.android.material.textfield.TextInputLayout>
 
+            <!-- Выбор семестра -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/semesterInputLayout"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="16dp"
+                android:hint="Семестр">
+
+                <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                    android:id="@+id/semesterInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="none" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
             <!-- Кнопка сохранения -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/saveButton"

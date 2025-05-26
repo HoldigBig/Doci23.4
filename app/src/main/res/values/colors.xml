@@ -18,7 +18,7 @@
 
     <!-- Gray scale -->
     <color name="gray">#757575</color>
-    <color name="gray_light">#EEEEEE</color>
+    <color name="gray_light">#9E9E9E</color>
     <color name="gray_dark">#424242</color>
     <color name="gray_50">#AFAFAF</color>
 
@@ -32,8 +32,8 @@
     <color name="chip_stroke_color">@color/background</color>
 
     <!-- Цвета для чипов предмета -->
-    <color name="subject_chip_background_color">#F0F0F0</color> <!-- Светло-серый фон по умолчанию -->
-    <color name="subject_chip_text_color">#000000</color> <!-- Черный текст по умолчанию -->
+    <color name="subject_chip_background_color">#F0F0F0</color>
+    <color name="subject_chip_text_color">#000000</color>
 
     <!-- Status colors -->
     <color name="success">#4CAF50</color>
@@ -50,4 +50,8 @@
     <color name="priority_high">#F44336</color>
     <color name="priority_medium">#FF9800</color>
     <color name="priority_low">#4CAF50</color>
+
+    <!-- Notification colors -->
+    <color name="notification_read_background">#F5F5F5</color>
+    <color name="notification_unread_background">#FFFFFF</color>
 </resources>

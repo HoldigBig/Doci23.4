@@ -1,16 +1,20 @@
 package com.example.doci40.exams.fragments
 
 import android.app.DatePickerDialog
+import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.widget.TextView
+import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.card.MaterialCardView
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -18,6 +22,7 @@ import java.util.Calendar
 import com.example.doci40.R
 import com.example.doci40.adapters.ExamsAdapter
 import com.example.doci40.exams.models.ExamModel
+import com.example.doci40.AddExamActivity
 
 class ExamsFragment : Fragment(R.layout.fragment_exams) {
     private var semester: Int = 1
@@ -30,6 +35,7 @@ class ExamsFragment : Fragment(R.layout.fragment_exams) {
     private lateinit var clearDateIcon: View
     
     private var selectedDate: Calendar? = null
+    private var examsListener: ListenerRegistration? = null
     
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
@@ -75,6 +81,9 @@ class ExamsFragment : Fragment(R.layout.fragment_exams) {
 
     private fun setupRecyclerView() {
         adapter = ExamsAdapter()
+        adapter.setOnExamClickListener { exam ->
+            showExamOptions(exam)
+        }
         recyclerView.apply {
             layoutManager = LinearLayoutManager(context)
             adapter = this@ExamsFragment.adapter
@@ -112,15 +121,17 @@ class ExamsFragment : Fragment(R.layout.fragment_exams) {
     }
 
     private fun loadExamsForDate(date: Calendar?) {
-        progressBar.visibility = View.VISIBLE
-        emptyView.visibility = View.GONE
-        recyclerView.visibility = View.GONE
+        showLoading()
+
+        // Отменяем предыдущий слушатель, если он существует
+        examsListener?.remove()
 
         auth.currentUser?.let { user ->
             var query: Query = db.collection("users")
                 .document(user.uid)
                 .collection("exams")
                 .whereEqualTo("semester", semester)
+
             if (date != null) {
                 val startOfDay = Calendar.getInstance().apply {
                     time = date.time
@@ -138,24 +149,26 @@ class ExamsFragment : Fragment(R.layout.fragment_exams) {
                     .whereGreaterThanOrEqualTo("date", startOfDay)
                     .whereLessThanOrEqualTo("date", endOfDay)
             }
-            query.get()
-                .addOnSuccessListener { documents ->
-                    progressBar.visibility = View.GONE
-                    if (documents.isEmpty) {
-                        emptyView.visibility = View.VISIBLE
-                        recyclerView.visibility = View.GONE
+
+            // Добавляем слушатель изменений
+            examsListener = query.addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    showError("Ошибка при загрузке данных: ${error.message}")
+                    return@addSnapshotListener
+                }
+
+                if (snapshot != null) {
+                    if (snapshot.isEmpty) {
+                        showEmptyState()
                     } else {
-                        val exams = documents.mapNotNull { it.toObject(ExamModel::class.java) }
+                        val exams = snapshot.documents.mapNotNull { 
+                            it.toObject(ExamModel::class.java) 
+                        }.sortedWith(compareBy({ it.date }, { it.startTime }))
                         adapter.submitList(exams)
-                        emptyView.visibility = View.GONE
-                        recyclerView.visibility = View.VISIBLE
+                        showContent()
                     }
                 }
-                .addOnFailureListener {
-                    progressBar.visibility = View.GONE
-                    emptyView.visibility = View.VISIBLE
-                    recyclerView.visibility = View.GONE
-                }
+            }
         }
     }
 
@@ -182,6 +195,7 @@ class ExamsFragment : Fragment(R.layout.fragment_exams) {
         recyclerView.visibility = View.GONE
         emptyView.visibility = View.VISIBLE
         emptyView.text = message
+        showSnackbar(message)
     }
 
     fun applyFilter(subject: String?) {
@@ -224,6 +238,65 @@ class ExamsFragment : Fragment(R.layout.fragment_exams) {
                 .setAction(getString(R.string.retry)) { loadExamsForDate(selectedDate) }
                 .show()
         }
+    }
+
+    private fun showExamOptions(exam: ExamModel) {
+        val options = arrayOf("Редактировать", "Удалить")
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle("Действия с экзаменом")
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> editExam(exam)
+                    1 -> deleteExam(exam)
+                }
+            }
+            .show()
+    }
+
+    private fun editExam(exam: ExamModel) {
+        val intent = Intent(requireContext(), AddExamActivity::class.java).apply {
+            putExtra(AddExamActivity.EXTRA_SEMESTER, semester)
+            putExtra("exam_id", exam.examId)
+            putExtra("subject", exam.subject)
+            putExtra("date", exam.date)
+            putExtra("start_time", exam.startTime)
+            putExtra("end_time", exam.endTime)
+            putExtra("location", exam.location)
+            putExtra("examiner", exam.examiner)
+            putExtra("type", exam.type)
+            putExtra("duration", exam.duration)
+        }
+        startActivity(intent)
+    }
+
+    private fun deleteExam(exam: ExamModel) {
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle("Удаление экзамена")
+            .setMessage("Вы уверены, что хотите удалить этот экзамен?")
+            .setPositiveButton("Удалить") { _, _ ->
+                val currentUser = auth.currentUser
+                if (currentUser != null) {
+                    db.collection("users")
+                        .document(currentUser.uid)
+                        .collection("exams")
+                        .document(exam.examId)
+                        .delete()
+                        .addOnSuccessListener {
+                            Toast.makeText(context, "Экзамен удален", Toast.LENGTH_SHORT).show()
+                        }
+                        .addOnFailureListener { e ->
+                            Toast.makeText(context, "Ошибка при удалении: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
+                }
+            }
+            .setNegativeButton("Отмена", null)
+            .show()
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        // Отменяем слушатель при уничтожении представления
+        examsListener?.remove()
     }
 
     companion object {

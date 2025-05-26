@@ -32,36 +32,47 @@ class AddExamActivity : AppCompatActivity() {
     private lateinit var examinerInput: TextInputEditText
     private lateinit var typeInput: MaterialAutoCompleteTextView
     private lateinit var durationInput: TextInputEditText
+    private lateinit var semesterInput: MaterialAutoCompleteTextView
     private lateinit var saveButton: MaterialButton
 
     private var selectedDate: Calendar = Calendar.getInstance()
     private var semester: Int = 1
+    private var examToEdit: ExamModel? = null
+    private var isEditMode = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        // Включаем edge-to-edge
         WindowCompat.setDecorFitsSystemWindows(window, false)
-
         setContentView(R.layout.activity_add_exam)
 
-        // Устанавливаем темные иконки для строки состояния (для светлого фона)
-        val windowInsetsController = WindowCompat.getInsetsController(window, window.decorView)
-        windowInsetsController.isAppearanceLightStatusBars = true
-
-        // Возвращаем обработчик отступов
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
-            insets
-        }
-
+        // Получаем данные для редактирования
         semester = intent.getIntExtra(EXTRA_SEMESTER, 1)
+        isEditMode = intent.hasExtra("exam_id")
+        if (isEditMode) {
+            examToEdit = ExamModel(
+                examId = intent.getStringExtra("exam_id") ?: "",
+                subject = intent.getStringExtra("subject") ?: "",
+                date = intent.getStringExtra("date") ?: "",
+                startTime = intent.getStringExtra("start_time") ?: "",
+                endTime = intent.getStringExtra("end_time") ?: "",
+                location = intent.getStringExtra("location") ?: "",
+                examiner = intent.getStringExtra("examiner") ?: "",
+                type = intent.getStringExtra("type") ?: "",
+                duration = intent.getIntExtra("duration", 0),
+                semester = semester
+            )
+        }
 
         initViews()
         setupToolbar()
         setupInputs()
+        setupDatePicker()
+        setupTimePickers()
         setupSaveButton()
+        setupWindowInsets()
+
+        // Если это режим редактирования, заполняем поля данными
+        examToEdit?.let { fillFieldsWithExam(it) }
     }
 
     private fun initViews() {
@@ -74,7 +85,11 @@ class AddExamActivity : AppCompatActivity() {
         examinerInput = findViewById(R.id.examinerInput)
         typeInput = findViewById(R.id.typeInput)
         durationInput = findViewById(R.id.durationInput)
+        semesterInput = findViewById(R.id.semesterInput)
         saveButton = findViewById(R.id.saveButton)
+
+        // Обновляем заголовок в зависимости от режима
+        toolbar.title = if (isEditMode) "Редактировать экзамен" else "Добавить экзамен"
     }
 
     private fun setupToolbar() {
@@ -90,6 +105,14 @@ class AddExamActivity : AppCompatActivity() {
 
         // Настройка выпадающего списка типов экзаменов
         typeInput.setSimpleItems(ExamModel.EXAM_TYPES.toTypedArray())
+
+        // Настройка выпадающего списка семестров
+        val semesters = (1..8).map { "Семестр $it" }.toTypedArray()
+        semesterInput.setSimpleItems(semesters)
+        semesterInput.setText(semesters[semester - 1], false)
+        semesterInput.setOnItemClickListener { _, _, position, _ ->
+            semester = position + 1
+        }
 
         // Настройка выбора даты
         dateInput.setOnClickListener {
@@ -199,22 +222,42 @@ class AddExamActivity : AppCompatActivity() {
             isValid = false
         }
 
+        if (semesterInput.text.isNullOrBlank()) {
+            semesterInput.error = "Выберите семестр"
+            isValid = false
+        }
+
         return isValid
     }
 
+    private fun fillFieldsWithExam(exam: ExamModel) {
+        subjectInput.setText(exam.subject)
+        dateInput.setText(exam.date)
+        startTimeInput.setText(exam.startTime)
+        endTimeInput.setText(exam.endTime)
+        locationInput.setText(exam.location)
+        examinerInput.setText(exam.examiner)
+        typeInput.setText(exam.type)
+        durationInput.setText(exam.duration.toString())
+    }
+
     private fun saveExam() {
-        val examId = UUID.randomUUID().toString()
+        val examId = examToEdit?.examId ?: UUID.randomUUID().toString()
         val exam = ExamModel(
             examId = examId,
             subject = subjectInput.text.toString(),
             date = dateInput.text.toString(),
             startTime = startTimeInput.text.toString(),
             endTime = endTimeInput.text.toString(),
+            location = locationInput.text.toString(),
+            examiner = examinerInput.text.toString(),
+            type = typeInput.text.toString(),
+            duration = durationInput.text.toString().toIntOrNull() ?: 0,
             isActive = true,
-            semester = semester,
+            semester = semester
         )
 
-        if (!exam.isValid()) {
+        if (!exam.valid) {
             Toast.makeText(this, "Проверьте правильность заполнения полей", Toast.LENGTH_SHORT).show()
             return
         }
@@ -232,7 +275,8 @@ class AddExamActivity : AppCompatActivity() {
             .document(examId)
             .set(exam)
             .addOnSuccessListener {
-                Toast.makeText(this, "Экзамен успешно добавлен", Toast.LENGTH_SHORT).show()
+                val message = if (isEditMode) "Экзамен успешно обновлен" else "Экзамен успешно добавлен"
+                Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
                 finish()
             }
             .addOnFailureListener { e ->
@@ -240,7 +284,80 @@ class AddExamActivity : AppCompatActivity() {
             }
     }
 
+    private fun setupDatePicker() {
+        dateInput.setOnClickListener {
+            val calendar = Calendar.getInstance()
+            val year = calendar.get(Calendar.YEAR)
+            val month = calendar.get(Calendar.MONTH)
+            val day = calendar.get(Calendar.DAY_OF_MONTH)
+
+            DatePickerDialog(
+                this,
+                { _, selectedYear, selectedMonth, selectedDay ->
+                    calendar.set(selectedYear, selectedMonth, selectedDay)
+                    val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale("ru"))
+                    dateInput.setText(dateFormat.format(calendar.time))
+                },
+                year,
+                month,
+                day
+            ).show()
+        }
+    }
+
+    private fun setupTimePickers() {
+        // Настройка выбора времени начала
+        startTimeInput.setOnClickListener {
+            val calendar = Calendar.getInstance()
+            val hour = calendar.get(Calendar.HOUR_OF_DAY)
+            val minute = calendar.get(Calendar.MINUTE)
+
+            TimePickerDialog(
+                this,
+                { _, selectedHour, selectedMinute ->
+                    val timeFormat = SimpleDateFormat("HH:mm", Locale("ru"))
+                    calendar.set(Calendar.HOUR_OF_DAY, selectedHour)
+                    calendar.set(Calendar.MINUTE, selectedMinute)
+                    startTimeInput.setText(timeFormat.format(calendar.time))
+                },
+                hour,
+                minute,
+                true
+            ).show()
+        }
+
+        // Настройка выбора времени окончания
+        endTimeInput.setOnClickListener {
+            val calendar = Calendar.getInstance()
+            val hour = calendar.get(Calendar.HOUR_OF_DAY)
+            val minute = calendar.get(Calendar.MINUTE)
+
+            TimePickerDialog(
+                this,
+                { _, selectedHour, selectedMinute ->
+                    val timeFormat = SimpleDateFormat("HH:mm", Locale("ru"))
+                    calendar.set(Calendar.HOUR_OF_DAY, selectedHour)
+                    calendar.set(Calendar.MINUTE, selectedMinute)
+                    endTimeInput.setText(timeFormat.format(calendar.time))
+                },
+                hour,
+                minute,
+                true
+            ).show()
+        }
+    }
+
+    private fun setupWindowInsets() {
+        // Возвращаем обработчик отступов
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+            insets
+        }
+    }
+
     companion object {
         const val EXTRA_SEMESTER = "extra_semester"
+        const val EXTRA_EXAM = "extra_exam"
     }
 }

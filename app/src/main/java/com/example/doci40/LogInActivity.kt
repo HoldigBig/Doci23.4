@@ -12,7 +12,6 @@ import com.google.android.material.button.MaterialButton
 import android.widget.ImageButton
 import android.widget.CheckBox
 import android.content.Context
-import android.graphics.Color
 import android.os.Build
 import android.view.View
 import androidx.core.view.ViewCompat
@@ -45,7 +44,7 @@ class LogInActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        setContentView(R.layout.activity_log_in)
+        setContentView(R.layout.activity_login)
 
         // Устанавливаем цвет статус бара на @color/background и иконки на черный
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -103,7 +102,49 @@ class LogInActivity : AppCompatActivity() {
                 emailInput.setText(savedEmail)
                 passwordInput.setText(savedPassword)
                 rememberMeCheckBox.isChecked = true
-                performLogin(savedEmail, savedPassword, savedUserType)
+                
+                // Показываем индикатор загрузки
+                val loadingView = findViewById<View>(R.id.loadingView)
+                loadingView?.visibility = View.VISIBLE
+                
+                auth.signInWithEmailAndPassword(savedEmail, savedPassword)
+                    .addOnSuccessListener { result ->
+                        val user = result.user
+                        if (user != null) {
+                            // Проверяем тип пользователя в Firestore только по uid
+                            db.collection("users")
+                                .document(user.uid)
+                                .get()
+                                .addOnSuccessListener { document ->
+                                    loadingView?.visibility = View.GONE
+                                    if (document != null && document.exists()) {
+                                        val userTypeInDb = document.getString("userType")
+                                        if (userTypeInDb == savedUserType) {
+                                            startActivity(Intent(this, HomeActivity::class.java))
+                                            finish()
+                                        } else {
+                                            showError("Ошибка: неверный тип пользователя")
+                                            auth.signOut()
+                                            clearSavedCredentials()
+                                        }
+                                    } else {
+                                        showError("Ошибка: пользователь не найден")
+                                        auth.signOut()
+                                        clearSavedCredentials()
+                                    }
+                                }
+                                .addOnFailureListener { e ->
+                                    loadingView?.visibility = View.GONE
+                                    showError("Ошибка: ${e.message}")
+                                    clearSavedCredentials()
+                                }
+                        }
+                    }
+                    .addOnFailureListener { e ->
+                        loadingView?.visibility = View.GONE
+                        showError("Ошибка входа: ${e.message}")
+                        clearSavedCredentials()
+                    }
             }
         }
     }
@@ -152,76 +193,48 @@ class LogInActivity : AppCompatActivity() {
     }
 
     private fun performLogin(email: String, password: String, userType: String) {
-        Log.d(TAG, "performLogin: Начало входа с email: $email, userType: $userType")
+        // Показываем индикатор загрузки
+        val loadingView = findViewById<View>(R.id.loadingView)
+        loadingView?.visibility = View.VISIBLE
 
         auth.signInWithEmailAndPassword(email, password)
             .addOnSuccessListener { result ->
                 val user = result.user
                 if (user != null) {
-                    Log.d(TAG, "performLogin: Пользователь успешно аутентифицирован, uid: ${user.uid}")
-
-                    // Проверяем тип пользователя в Firestore
+                    // Проверяем тип пользователя в Firestore только по uid
                     db.collection("users")
-                        .whereEqualTo("email", email)
+                        .document(user.uid)
                         .get()
-                        .addOnSuccessListener { documents ->
-                            if (!documents.isEmpty) {
-                                val document = documents.documents[0]
+                        .addOnSuccessListener { document ->
+                            loadingView?.visibility = View.GONE
+                            if (document != null && document.exists()) {
                                 val userTypeInDb = document.getString("userType")
-                                Log.d(TAG, "performLogin: Тип пользователя в БД: $userTypeInDb")
-
                                 if (userTypeInDb == userType) {
-                                    Log.d(TAG, "performLogin: Тип пользователя соответствует ожидаемому")
+                                    saveCredentials(email, password)
                                     startActivity(Intent(this, HomeActivity::class.java))
                                     finish()
                                 } else {
-                                    Log.e(TAG, "performLogin: Тип пользователя не соответствует ожидаемому")
-                                    Toast.makeText(this, "Ошибка: вы выбрали неверный тип пользователя", Toast.LENGTH_LONG).show()
+                                    showError("Ошибка: вы выбрали неверный тип пользователя")
                                     auth.signOut()
                                 }
                             } else {
-                                // Если не нашли по email, проверяем по uid
-                                db.collection("users")
-                                    .document(user.uid)
-                                    .get()
-                                    .addOnSuccessListener { document ->
-                                        if (document != null && document.exists()) {
-                                            val userTypeInDb = document.getString("userType")
-                                            Log.d(TAG, "performLogin: Тип пользователя в БД (по uid): $userTypeInDb")
-
-                                            if (userTypeInDb == userType) {
-                                                Log.d(TAG, "performLogin: Тип пользователя соответствует ожидаемому")
-                                                startActivity(Intent(this, HomeActivity::class.java))
-                                                finish()
-                                            } else {
-                                                Log.e(TAG, "performLogin: Тип пользователя не соответствует ожидаемому")
-                                                Toast.makeText(this, "Ошибка: вы выбрали неверный тип пользователя", Toast.LENGTH_LONG).show()
-                                                auth.signOut()
-                                            }
-                                        } else {
-                                            Log.e(TAG, "performLogin: Пользователь не найден в базе данных")
-                                            Toast.makeText(this, "Ошибка: пользователь не найден в базе данных. Пожалуйста, зарегистрируйтесь", Toast.LENGTH_LONG).show()
-                                            auth.signOut()
-                                        }
-                                    }
-                                    .addOnFailureListener { e ->
-                                        Log.e(TAG, "performLogin: Ошибка получения данных пользователя по uid", e)
-                                        Toast.makeText(this, "Ошибка: ${e.message}", Toast.LENGTH_SHORT).show()
-                                    }
+                                showError("Ошибка: пользователь не найден")
+                                auth.signOut()
                             }
                         }
                         .addOnFailureListener { e ->
-                            Log.e(TAG, "performLogin: Ошибка получения данных пользователя", e)
-                            Toast.makeText(this, "Ошибка: ${e.message}", Toast.LENGTH_SHORT).show()
+                            loadingView?.visibility = View.GONE
+                            showError("Ошибка: ${e.message}")
                         }
-                } else {
-                    Log.e(TAG, "performLogin: Пользователь не найден после успешной аутентификации")
-                    Toast.makeText(this, "Ошибка: пользователь не найден", Toast.LENGTH_SHORT).show()
                 }
             }
             .addOnFailureListener { e ->
-                Log.e(TAG, "performLogin: Ошибка аутентификации", e)
-                Toast.makeText(this, "Ошибка: ${e.message}", Toast.LENGTH_SHORT).show()
+                loadingView?.visibility = View.GONE
+                showError("Ошибка входа: ${e.message}")
             }
+    }
+
+    private fun showError(message: String) {
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
 }

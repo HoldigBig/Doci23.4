@@ -25,7 +25,7 @@ import com.google.android.material.progressindicator.CircularProgressIndicator
 import com.google.android.material.tabs.TabLayout
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-
+import com.google.firebase.firestore.ListenerRegistration
 
 class ExamsResultActivity : AppCompatActivity() {
 
@@ -38,8 +38,13 @@ class ExamsResultActivity : AppCompatActivity() {
     private lateinit var attendanceRating: RatingBar
     private lateinit var workRating: RatingBar
     private lateinit var tabLayout: TabLayout
+    private lateinit var recyclerView: RecyclerView
+    private lateinit var emptyView: View
+    private lateinit var errorView: View
+    private lateinit var loadingView: View
 
     private var currentTermId: Int = 1
+    private var termListener: ListenerRegistration? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -86,6 +91,10 @@ class ExamsResultActivity : AppCompatActivity() {
         attendanceRating = findViewById(R.id.attendanceRating)
         workRating = findViewById(R.id.workRating)
         tabLayout = findViewById(R.id.tabLayout)
+        recyclerView = findViewById(R.id.subjectsRecyclerView)
+        emptyView = findViewById(R.id.emptyView)
+        errorView = findViewById(R.id.errorView)
+        loadingView = findViewById(R.id.loadingView)
     }
 
     private fun setupTabLayout() {
@@ -115,7 +124,7 @@ class ExamsResultActivity : AppCompatActivity() {
         subjectAdapter = SubjectResultAdapter { subject ->
             showSubjectDetail(subject)
         }
-        findViewById<RecyclerView>(R.id.subjectsRecyclerView).apply {
+        recyclerView.apply {
             layoutManager = LinearLayoutManager(this@ExamsResultActivity)
             adapter = subjectAdapter
         }
@@ -154,20 +163,37 @@ class ExamsResultActivity : AppCompatActivity() {
     }
 
     private fun loadTermResults(termId: Int) {
+        showLoading()
+        
+        // Отменяем предыдущий слушатель, если он существует
+        termListener?.remove()
+
         val currentUser = auth.currentUser
-        currentUser?.let { user ->
-            db.collection("users").document(user.uid)
-                .collection("results")
-                .document("term_$termId")
-                .get()
-                .addOnSuccessListener { document ->
-                    if (document != null && document.exists()) {
-                        val termResult = document.toObject(TermResult::class.java)
-                        termResult?.let {
-                            updateUI(it)
-                        }
-                    }
-                }
+        if (currentUser == null) {
+            showError("Необходимо войти в аккаунт")
+            return
+        }
+
+        val termRef = db.collection("users")
+            .document(currentUser.uid)
+            .collection("results")
+            .document("term_$termId")
+
+        // Устанавливаем нового слушателя
+        termListener = termRef.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                showError("Ошибка при загрузке данных: ${error.message}")
+                return@addSnapshotListener
+            }
+
+            if (snapshot != null && snapshot.exists()) {
+                val termResult = snapshot.toObject(TermResult::class.java)
+                termResult?.let {
+                    updateUI(it)
+                } ?: showError("Ошибка при загрузке данных")
+            } else {
+                showEmpty()
+            }
         }
     }
 
@@ -182,7 +208,41 @@ class ExamsResultActivity : AppCompatActivity() {
         workRating.rating = termResult.work.toFloat()
 
         // Обновляем список предметов
-        subjectAdapter.updateSubjects(termResult.subjects)
+        if (termResult.subjects.isEmpty()) {
+            showEmpty()
+        } else {
+            showContent()
+            subjectAdapter.submitList(termResult.subjects)
+        }
+    }
+
+    private fun showLoading() {
+        loadingView.visibility = View.VISIBLE
+        recyclerView.visibility = View.GONE
+        emptyView.visibility = View.GONE
+        errorView.visibility = View.GONE
+    }
+
+    private fun showContent() {
+        loadingView.visibility = View.GONE
+        recyclerView.visibility = View.VISIBLE
+        emptyView.visibility = View.GONE
+        errorView.visibility = View.GONE
+    }
+
+    private fun showEmpty() {
+        loadingView.visibility = View.GONE
+        recyclerView.visibility = View.GONE
+        emptyView.visibility = View.VISIBLE
+        errorView.visibility = View.GONE
+    }
+
+    private fun showError(message: String) {
+        loadingView.visibility = View.GONE
+        recyclerView.visibility = View.GONE
+        emptyView.visibility = View.GONE
+        errorView.visibility = View.VISIBLE
+        findViewById<TextView>(R.id.errorText).text = message
     }
 
     override fun onBackPressed() {
@@ -195,5 +255,11 @@ class ExamsResultActivity : AppCompatActivity() {
         } else {
             super.onBackPressed()
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // Отменяем слушатель при уничтожении активности
+        termListener?.remove()
     }
 }
